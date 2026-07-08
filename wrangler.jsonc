@@ -11,7 +11,7 @@
     {
       "binding": "DB",
       "database_name": "promptstan-db",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID"
+      "database_id": "f0c241b4-84f8-4cc4-bb43-55c9cc07eb7f"
     }
   ],
   "r2_buckets": [
