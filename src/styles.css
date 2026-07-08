@@ -4,12 +4,13 @@
 html { scroll-behavior: smooth; }
 body { margin: 0; min-height: 100vh; background: #09090b; color: #fff; font-family: 'Noto Sans Arabic', system-ui, sans-serif; }
 button, input { font: inherit; } button { cursor: pointer; }
-
 .app { min-height: 100vh; overflow: hidden; padding-bottom: 86px; background: radial-gradient(circle at 82% 4%, rgba(139, 92, 246, 0.34), transparent 30%), radial-gradient(circle at 10% 35%, rgba(0, 245, 160, 0.18), transparent 25%), linear-gradient(180deg, #09090b 0%, #0e0e14 45%, #09090b 100%); }
+.app.ltr { direction: ltr; }
 .toast { position: fixed; left: 20px; bottom: 92px; z-index: 50; background: rgba(0,245,160,.95); color: #07100d; padding: 13px 18px; border-radius: 18px; font-weight: 800; box-shadow: 0 18px 50px rgba(0,245,160,.28); }
 .modalOverlay { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,.72); backdrop-filter: blur(14px); padding: 18px; display: grid; place-items: center; overflow-y: auto; }
 .promptModal { width: min(1050px, 100%); max-height: 92vh; overflow: auto; border: 1px solid rgba(255,255,255,.13); border-radius: 34px; background: rgba(12,12,18,.96); box-shadow: 0 30px 100px rgba(0,0,0,.5); display: grid; grid-template-columns: .95fr 1.05fr; gap: 0; position: relative; }
 .modalClose { position: absolute; top: 16px; left: 16px; z-index: 2; width: 42px; height: 42px; border-radius: 50%; border: 1px solid rgba(255,255,255,.14); background: rgba(0,0,0,.35); color: white; display: grid; place-items: center; }
+.app.ltr .modalClose { left: auto; right: 16px; }
 .modalVisual { min-height: 520px; padding: 28px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; }
 .modalVisual:after { content: ''; position: absolute; inset: 28% -15% -10% -15%; background: radial-gradient(circle, rgba(255,255,255,.30), transparent 48%); }
 .modalVisual span, .modalVisual strong { position: relative; z-index: 1; }
@@ -28,8 +29,7 @@ button, input { font: inherit; } button { cursor: pointer; }
 .modelGrid span { color: #00f5a0; }
 .favoriteWide { margin-top: 18px; width: 100%; justify-content: center; border: 1px solid rgba(255,255,255,.12); border-radius: 16px; background: rgba(255,255,255,.06); color: white; padding: 12px; display: inline-flex; align-items: center; gap: 8px; }
 .favoriteWide.active { color: #ff5c8a; border-color: rgba(255,92,138,.45); background: rgba(255,92,138,.09); }
-
-.navbar { max-width: 1180px; margin: 0 auto; padding: 24px 20px; display: flex; align-items: center; justify-content: space-between; }
+.navbar { max-width: 1180px; margin: 0 auto; padding: 24px 20px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .brand { display: flex; align-items: center; gap: 12px; }
 .logoMark { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 16px; background: linear-gradient(135deg, #8b5cf6, #00f5a0); box-shadow: 0 0 30px rgba(0, 245, 160, .26); }
 .brand strong { display: block; font-size: 22px; } .brand span { display: block; color: #a1a1aa; font-size: 13px; margin-top: 2px; }
@@ -39,12 +39,11 @@ button, input { font: inherit; } button { cursor: pointer; }
 .languageTabs button.active { background: rgba(0,245,160,.12); color: #00f5a0; }
 .ghost, .primarySmall, .primary, .copyButton, .previewButton, .tags button, .collectionRow button { border: 1px solid rgba(255,255,255,.12); border-radius: 14px; background: rgba(255,255,255,.06); color: white; padding: 10px 14px; display: inline-flex; align-items: center; gap: 8px; }
 .primarySmall, .primary { border: 0; background: linear-gradient(135deg, #8b5cf6, #00f5a0); color: #07100d; font-weight: 800; }
-
 .hero { max-width: 960px; margin: 36px auto 70px; padding: 0 20px; text-align: center; }
 .heroBadge { display: inline-flex; align-items: center; gap: 8px; border: 1px solid rgba(0,245,160,.45); color: #00f5a0; background: rgba(0,245,160,.07); padding: 9px 18px; border-radius: 999px; }
 .hero h1 { margin: 22px 0 10px; font-size: clamp(42px, 8vw, 88px); line-height: 1.02; letter-spacing: -2px; }
 .hero p { color: #c4c4cf; max-width: 680px; margin: 0 auto; line-height: 1.9; }
-.searchBox { margin: 34px auto 18px; max-width: 760px; display: flex; align-items: center; gap: 12px; background: rgba(20,20,26,.86); border: 1px solid rgba(139,92,246,.75); border-radius: 24px; padding: 12px 14px 12px 12px; box-shadow: 0 0 46px rgba(139,92,246,.18); transition: .25s ease; }
+.searchBox { margin: 34px auto 18px; max-width: 760px; display: flex; align-items: center; gap: 12px; background: rgba(20,20,26,.86); border: 1px solid rgba(139,92,246,.75); border-radius: 24px; padding: 12px 14px; box-shadow: 0 0 46px rgba(139,92,246,.18); transition: .25s ease; }
 .searchBox:focus-within { border-color: #00f5a0; box-shadow: 0 0 58px rgba(0,245,160,.18); }
 .searchBox input { width: 100%; border: 0; outline: 0; background: transparent; color: white; font-size: 18px; }
 .searchBox button { border: 0; color: #07100d; background: #00f5a0; padding: 12px 22px; border-radius: 16px; font-weight: 800; display: inline-flex; align-items: center; gap: 8px; }
@@ -73,19 +72,21 @@ button, input { font: inherit; } button { cursor: pointer; }
 .categoryCard span { font-size: 28px; } .categoryCard small { color: #00f5a0; } .categoryCard:hover { transform: translateY(-4px); border-color: #00f5a0; box-shadow: 0 0 30px rgba(0,245,160,.12); }
 .miniRow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .miniTrend { text-align: right; border: 1px solid rgba(255,255,255,.1); border-radius: 22px; background: rgba(255,255,255,.05); color: white; padding: 18px; display: grid; gap: 8px; }
+.app.ltr .miniTrend { text-align: left; }
 .miniTrend span { color: #00f5a0; font-size: 13px; } .miniTrend small { color: #a1a1aa; }
 .emptyState { border: 1px dashed rgba(255,255,255,.16); border-radius: 28px; padding: 34px; text-align: center; color: #c4c4cf; background: rgba(255,255,255,.04); }
 .emptyState svg { color: #ff5c8a; }
 .promptGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
 .promptCard { position: relative; border: 1px solid rgba(255,255,255,.10); border-radius: 28px; background: rgba(20,20,26,.82); padding: 14px; transition: .25s ease; }
 .promptCard:hover { transform: translateY(-5px); border-color: rgba(139,92,246,.8); box-shadow: 0 18px 50px rgba(139,92,246,.12); }
-.heartButton { position: absolute; top: 24px; left: 24px; z-index: 3; width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(255,255,255,.18); background: rgba(0,0,0,.34); color: white; display: grid; place-items: center; }
-.heartButton.active { color: #ff5c8a; border-color: rgba(255,92,138,.55); background: rgba(255,92,138,.16); }
-.promptImage { height: 190px; border-radius: 22px; padding: 14px; display: flex; align-items: start; justify-content: space-between; flex-direction: column; overflow: hidden; position: relative; }
+.heartButton { position: absolute; top: 24px; left: 24px; z-index: 5; width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(255,255,255,.18); background: rgba(0,0,0,.52); color: white; display: grid; place-items: center; backdrop-filter: blur(8px); }
+.app.ltr .heartButton { left: auto; right: 24px; }
+.heartButton.active { color: #ff5c8a; border-color: rgba(255,92,138,.55); background: rgba(255,92,138,.20); }
+.promptImage { height: 190px; border-radius: 22px; padding: 14px; display: flex; align-items: start; justify-content: flex-end; flex-direction: column; overflow: hidden; position: relative; }
 .promptImage:after { content: ''; position: absolute; inset: 35% -20% -20% -20%; background: radial-gradient(circle, rgba(255,255,255,.34), transparent 42%); }
-.promptImage span, .promptImage strong { position: relative; z-index: 1; }
-.promptImage span { font-size: 12px; border-radius: 999px; padding: 7px 11px; background: rgba(0,0,0,.34); align-self: flex-end; }
-.promptImage strong { font-size: 24px; }
+.promptImage strong { position: relative; z-index: 1; font-size: 24px; padding-top: 58px; }
+.promptBadge { position: absolute; top: 14px; right: 14px; z-index: 4; font-size: 12px; border-radius: 999px; padding: 7px 11px; background: rgba(0,0,0,.52); backdrop-filter: blur(8px); white-space: nowrap; max-width: calc(100% - 76px); overflow: hidden; text-overflow: ellipsis; }
+.app.ltr .promptBadge { right: auto; left: 14px; }
 .promptImage.purple, .modalVisual.purple { background: linear-gradient(135deg, #8b5cf6, #1f1638); } .promptImage.green, .modalVisual.green { background: linear-gradient(135deg, #00f5a0, #10261f); } .promptImage.gold, .modalVisual.gold { background: linear-gradient(135deg, #ffd166, #3d2f13); } .promptImage.pink, .modalVisual.pink { background: linear-gradient(135deg, #ec4899, #2b1430); } .promptImage.blue, .modalVisual.blue { background: linear-gradient(135deg, #38bdf8, #111827); } .promptImage.rose, .modalVisual.rose { background: linear-gradient(135deg, #fb7185, #251016); }
 .promptMeta { display: flex; flex-wrap: wrap; gap: 8px; color: #a1a1aa; font-size: 12px; margin-top: 14px; } .promptMeta span:first-child { color: #00f5a0; }
 .promptCard h3 { margin: 12px 0 6px; font-size: 20px; } .promptCard p { color: #c4c4cf; line-height: 1.7; min-height: 54px; }
@@ -98,4 +99,4 @@ footer { border-top: 1px solid rgba(255,255,255,.1); padding-top: 28px; color: #
 .bottomNav button { border: 0; border-radius: 18px; background: transparent; color: #c4c4cf; display: grid; place-items: center; gap: 3px; padding: 8px 4px; font-size: 12px; }
 .bottomNav button:hover { color: #00f5a0; background: rgba(0,245,160,.08); }
 @media (max-width: 900px) { .feature { grid-template-columns: 1fr; } .categoryGrid { grid-template-columns: repeat(3, 1fr); } .promptGrid { grid-template-columns: repeat(2, 1fr); } .promptModal { grid-template-columns: 1fr; } .modalVisual { min-height: 320px; } .miniRow { grid-template-columns: 1fr; } }
-@media (max-width: 560px) { .navbar { padding-top: 18px; } .languageTabs button { padding: 7px 8px; font-size: 12px; } .navActions { gap: 6px; } .hero { margin-top: 26px; } .hero h1 { letter-spacing: -1px; } .searchBox { flex-wrap: wrap; } .searchBox button { width: 100%; justify-content: center; } .featureImage { min-height: 260px; } .glassPreview { width: 170px; height: 104px; } .categoryGrid { grid-template-columns: repeat(2, 1fr); } .promptGrid { grid-template-columns: 1fr; } .cardActions, .featureActions { grid-template-columns: 1fr; } .modalOverlay { padding: 8px; } .promptModal { border-radius: 24px; max-height: 96vh; } .modalContent { padding: 24px; } }
+@media (max-width: 560px) { .navbar { padding-top: 18px; align-items: flex-start; } .languageTabs button { padding: 7px 8px; font-size: 12px; } .navActions { gap: 6px; flex-wrap: wrap; justify-content: flex-end; } .app.ltr .navActions { justify-content: flex-start; } .hero { margin-top: 26px; } .hero h1 { letter-spacing: -1px; } .searchBox { flex-wrap: wrap; } .searchBox button { width: 100%; justify-content: center; } .featureImage { min-height: 260px; } .glassPreview { width: 170px; height: 104px; } .categoryGrid { grid-template-columns: repeat(2, 1fr); } .promptGrid { grid-template-columns: 1fr; } .cardActions, .featureActions { grid-template-columns: 1fr; } .modalOverlay { padding: 8px; } .promptModal { border-radius: 24px; max-height: 96vh; } .modalContent { padding: 24px; } }
