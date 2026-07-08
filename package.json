@@ -6,7 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "worker:dev": "wrangler dev",
+    "worker:deploy": "wrangler deploy",
+    "db:schema": "wrangler d1 execute promptstan-db --file=database/schema.sql",
+    "db:seed": "wrangler d1 execute promptstan-db --file=database/seed.sql"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
@@ -15,5 +19,7 @@
     "react-dom": "latest",
     "lucide-react": "latest"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "wrangler": "latest"
+  }
 }
