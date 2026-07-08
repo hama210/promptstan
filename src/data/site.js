@@ -6,88 +6,42 @@ export const categories = [
   { name: 'ئۆتۆمبێل', icon: '🚗', slug: 'cars', count: 52 },
   { name: 'بەرهەم', icon: '🛍️', slug: 'product', count: 64 },
   { name: 'هاوسەرگیری', icon: '💍', slug: 'wedding', count: 45 },
-  { name: 'ئەنیمە', icon: '🎨', slug: 'anime', count: 72 }
+  { name: 'ئەنیمە', icon: '🎨', slug: 'anime', count: 72 },
+  { name: 'کوردی ستایل', icon: '☀️', slug: 'kurdish-style', count: 210 },
+  { name: 'ئیسلامی', icon: '🕌', slug: 'islamic', count: 160 },
+  { name: 'جووت و خێزان', icon: '👥', slug: 'couples', count: 95 },
+  { name: 'فیلم و پۆستەر', icon: '🎞️', slug: 'movies', count: 140 },
+  { name: 'کارەکتەر', icon: '🦸', slug: 'characters', count: 125 },
+  { name: 'گەمینگ', icon: '🎮', slug: 'gaming', count: 88 },
+  { name: 'لاکژەری', icon: '💎', slug: 'luxury', count: 110 },
+  { name: 'وۆڵپەیپەر', icon: '📱', slug: 'wallpapers', count: 115 }
 ];
 
 export const promptItems = [
-  {
-    id: 1,
-    title: 'پۆرترێتی سینەمایی بە ڕۆشنایی زێڕین',
-    category: 'پۆرترێت',
-    badge: 'بەناوبانگ',
-    views: '15K',
-    copies: '4K',
-    rating: '4.9',
-    imageTitle: 'Golden Portrait',
-    text: 'Cinematic portrait photo edit, golden light, sharp details, natural colors, professional photography style, high quality.',
-    gradient: 'purple',
-    tags: ['پۆرترێت', 'سینەمایی', '4K']
-  },
-  {
-    id: 2,
-    title: 'باکگراوندی شاری نیۆن',
-    category: 'باکگراوند',
-    badge: 'نوێ',
-    views: '8K',
-    copies: '2K',
-    rating: '4.8',
-    imageTitle: 'Neon City',
-    text: 'Change the background to a futuristic neon city, realistic lighting, clean details, modern photo edit style.',
-    gradient: 'green',
-    tags: ['باکگراوند', 'نیۆن', 'شار']
-  },
-  {
-    id: 3,
-    title: 'وێنەی بەرهەم بە شێوازی لاکژەری',
-    category: 'بەرهەم',
-    badge: 'هەڵبژاردە',
-    views: '11K',
-    copies: '3K',
-    rating: '4.9',
-    imageTitle: 'Luxury Product',
-    text: 'Luxury product photography, studio lighting, clean background, premium commercial style, crisp details.',
-    gradient: 'gold',
-    tags: ['بەرهەم', 'لاکژەری', 'ستۆدیۆ']
-  },
-  {
-    id: 4,
-    title: 'ئەنیمە ستایلی ڕەنگاوڕەنگ',
-    category: 'ئەنیمە',
-    badge: 'ترێند',
-    views: '22K',
-    copies: '6K',
-    rating: '4.7',
-    imageTitle: 'Anime Style',
-    text: 'Transform the photo into a colorful anime illustration, soft lighting, clean lines, high quality.',
-    gradient: 'pink',
-    tags: ['ئەنیمە', 'هونەری', 'ڕەنگاوڕەنگ']
-  },
-  {
-    id: 5,
-    title: 'ئۆتۆمبێلی لاکژەری لە شەودا',
-    category: 'ئۆتۆمبێل',
-    badge: 'نوێ',
-    views: '9K',
-    copies: '2.8K',
-    rating: '4.8',
-    imageTitle: 'Luxury Car',
-    text: 'Luxury car photography at night, cinematic reflections, neon street lights, sharp details, premium advertising look.',
-    gradient: 'blue',
-    tags: ['ئۆتۆمبێل', 'لاکژەری', 'شەو']
-  },
-  {
-    id: 6,
-    title: 'هاوسەرگیری ڕۆمانسی',
-    category: 'هاوسەرگیری',
-    badge: 'تایبەت',
-    views: '7K',
-    copies: '1.9K',
-    rating: '4.8',
-    imageTitle: 'Wedding Mood',
-    text: 'Romantic wedding photo edit, warm soft light, elegant colors, cinematic atmosphere, natural skin tones.',
-    gradient: 'rose',
-    tags: ['هاوسەرگیری', 'ڕۆمانسی', 'سینەمایی']
-  }
+  { id: 1, title: 'پۆرترێتی سینەمایی بە ڕۆشنایی زێڕین', category: 'پۆرترێت', badge: 'بەناوبانگ', views: '15K', copies: '4K', rating: '4.9', imageTitle: 'Golden Portrait', text: 'Cinematic portrait photo edit, golden light, sharp details, natural colors, professional photography style, high quality.', gradient: 'purple', tags: ['پۆرترێت', 'سینەمایی', '4K', 'GoldenHour'] },
+  { id: 2, title: 'باکگراوندی شاری نیۆن', category: 'باکگراوند', badge: 'نوێ', views: '8K', copies: '2K', rating: '4.8', imageTitle: 'Neon City', text: 'Change the background to a futuristic neon city, realistic lighting, clean details, modern photo edit style.', gradient: 'green', tags: ['باکگراوند', 'نیۆن', 'شار'] },
+  { id: 3, title: 'وێنەی بەرهەم بە شێوازی لاکژەری', category: 'بەرهەم', badge: 'هەڵبژاردە', views: '11K', copies: '3K', rating: '4.9', imageTitle: 'Luxury Product', text: 'Luxury product photography, studio lighting, clean background, premium commercial style, crisp details.', gradient: 'gold', tags: ['بەرهەم', 'لاکژەری', 'ستۆدیۆ'] },
+  { id: 4, title: 'ئەنیمە ستایلی ڕەنگاوڕەنگ', category: 'ئەنیمە', badge: 'ترێند', views: '22K', copies: '6K', rating: '4.7', imageTitle: 'Anime Style', text: 'Transform the photo into a colorful anime illustration, soft lighting, clean lines, high quality.', gradient: 'pink', tags: ['ئەنیمە', 'هونەری', 'ڕەنگاوڕەنگ'] },
+  { id: 5, title: 'ئۆتۆمبێلی لاکژەری لە شەودا', category: 'ئۆتۆمبێل', badge: 'نوێ', views: '9K', copies: '2.8K', rating: '4.8', imageTitle: 'Luxury Car', text: 'Luxury car photography at night, cinematic reflections, neon street lights, sharp details, premium advertising look.', gradient: 'blue', tags: ['ئۆتۆمبێل', 'لاکژەری', 'شەو', 'LuxuryCar'] },
+  { id: 6, title: 'هاوسەرگیری ڕۆمانسی', category: 'هاوسەرگیری', badge: 'تایبەت', views: '7K', copies: '1.9K', rating: '4.8', imageTitle: 'Wedding Mood', text: 'Romantic wedding photo edit, warm soft light, elegant colors, cinematic atmosphere, natural skin tones.', gradient: 'rose', tags: ['هاوسەرگیری', 'ڕۆمانسی', 'سینەمایی'] },
+  { id: 7, title: 'بووکی کوردی بە جل و بەرگی نەریتی', category: 'کوردی ستایل', badge: 'کوردی', views: '31K', copies: '9K', rating: '5.0', imageTitle: 'Kurdish Bride', text: 'Kurdish bride in traditional colorful dress, elegant jewelry, warm cinematic light, mountain background, realistic photography, ultra detailed.', gradient: 'rose', tags: ['KurdishBride', 'کوردی', 'بووک', 'Traditional'] },
+  { id: 8, title: 'زاوای کوردی لە سروشتی کوردستان', category: 'کوردی ستایل', badge: 'نوێ', views: '18K', copies: '5K', rating: '4.9', imageTitle: 'Kurdish Groom', text: 'Kurdish groom wearing traditional Kurdish clothes, standing in Kurdistan mountains, cinematic sunlight, proud pose, realistic photo style.', gradient: 'green', tags: ['KurdishGroom', 'کوردی', 'جلی کوردی'] },
+  { id: 9, title: 'نەورۆزی کوردی بە ئاگر و شادی', category: 'کوردی ستایل', badge: 'ترێند', views: '42K', copies: '12K', rating: '5.0', imageTitle: 'Newroz Festival', text: 'Kurdish Newroz celebration, people dancing around fire, colorful traditional clothes, mountain night scene, cinematic festival photography.', gradient: 'gold', tags: ['Newroz', 'Kurdish', 'Festival', 'Fire'] },
+  { id: 10, title: 'قەڵای ھەولێر بە ستایلی سینەمایی', category: 'کوردی ستایل', badge: 'هەڵبژاردە', views: '20K', copies: '6K', rating: '4.9', imageTitle: 'Erbil Citadel', text: 'Erbil Citadel at sunset, warm golden light, cinematic sky, detailed old stone architecture, realistic travel photography, high quality.', gradient: 'gold', tags: ['Erbil', 'Citadel', 'Kurdistan', 'Travel'] },
+  { id: 11, title: 'حەورامان بە دیمەنی سروشتی', category: 'کوردی ستایل', badge: 'تایبەت', views: '17K', copies: '4K', rating: '4.8', imageTitle: 'Hawraman', text: 'Hawraman village in Kurdistan, layered stone houses, green mountains, misty morning light, cinematic landscape photography, ultra detailed.', gradient: 'green', tags: ['Hawraman', 'Kurdistan', 'Village', 'Nature'] },
+  { id: 12, title: 'کەعبە لە کاتی خۆرئاوابوون', category: 'ئیسلامی', badge: 'ئیسلامی', views: '35K', copies: '10K', rating: '5.0', imageTitle: 'Kaaba Sunset', text: 'The Kaaba in Mecca at sunset, peaceful atmosphere, warm golden light, cinematic Islamic photography, respectful composition, ultra realistic.', gradient: 'gold', tags: ['Kaaba', 'Mecca', 'Islamic', 'Ramadan'] },
+  { id: 13, title: 'مزگەوتی جوان بە ناوەڕۆکی ئیسلامی', category: 'ئیسلامی', badge: 'نوێ', views: '16K', copies: '4K', rating: '4.8', imageTitle: 'Mosque Interior', text: 'Beautiful mosque interior, Islamic geometric patterns, soft golden light, peaceful prayer atmosphere, architectural photography, high detail.', gradient: 'blue', tags: ['Mosque', 'Islamic', 'Architecture', 'Prayer'] },
+  { id: 14, title: 'قورئان بە ڕۆشنایی زێڕین', category: 'ئیسلامی', badge: 'هەڵبژاردە', views: '19K', copies: '5K', rating: '4.9', imageTitle: 'Quran Light', text: 'Open Quran on a wooden stand, warm golden light, peaceful dark background, cinematic Islamic still life photography, sharp details.', gradient: 'gold', tags: ['Quran', 'Islamic', 'GoldenLight'] },
+  { id: 15, title: 'ڕەمەزان لانترن و کەشی ئارام', category: 'ئیسلامی', badge: 'ترێند', views: '24K', copies: '7K', rating: '4.9', imageTitle: 'Ramadan Mood', text: 'Ramadan lanterns glowing at night, crescent moon, mosque silhouette, warm cinematic atmosphere, beautiful Islamic wallpaper style.', gradient: 'purple', tags: ['Ramadan', 'Lantern', 'Islamic', 'Wallpaper'] },
+  { id: 16, title: 'دوو وێنە پێکەوە بە شێوازی Hug', category: 'جووت و خێزان', badge: 'دوو وێنە', views: '28K', copies: '8K', rating: '4.8', imageTitle: 'Couple Hug', text: 'Combine two separate people from two photos into one realistic warm hug scene, natural body position, matching light, emotional cinematic photo edit.', gradient: 'rose', tags: ['Couple', 'Hug', 'TwoPhotos', 'PhotoEdit'] },
+  { id: 17, title: 'جووتێک دەستی یەکدی گرتووە', category: 'جووت و خێزان', badge: 'رۆمانسی', views: '21K', copies: '6K', rating: '4.8', imageTitle: 'Holding Hands', text: 'Create a realistic couple scene holding hands at sunset, soft romantic light, natural expressions, cinematic composition, high quality photo edit.', gradient: 'gold', tags: ['Couple', 'HoldingHands', 'Romantic'] },
+  { id: 18, title: 'دوو کەس لە یەک وێنەدا بە شێوازی هاوڕێیی', category: 'جووت و خێزان', badge: 'نوێ', views: '13K', copies: '3K', rating: '4.7', imageTitle: 'Together Photo', text: 'Place two people together in one realistic photo, natural distance, friendly pose, matching lighting and shadows, clean cinematic photo edit.', gradient: 'blue', tags: ['TwoPhotos', 'Friends', 'Together'] },
+  { id: 19, title: 'پۆستەری فیلمی ئەکشن', category: 'فیلم و پۆستەر', badge: 'فیلم', views: '26K', copies: '7K', rating: '4.8', imageTitle: 'Action Poster', text: 'Hollywood action movie poster style, dramatic lighting, smoke, sparks, intense cinematic atmosphere, bold composition, ultra detailed.', gradient: 'purple', tags: ['MoviePoster', 'Action', 'Hollywood'] },
+  { id: 20, title: 'فیلمی ترسناک بە کەشی تاریک', category: 'فیلم و پۆستەر', badge: 'ترسناک', views: '14K', copies: '4K', rating: '4.7', imageTitle: 'Horror Scene', text: 'Dark horror movie scene, foggy abandoned street, scary cinematic lighting, suspenseful atmosphere, realistic film still, high detail.', gradient: 'blue', tags: ['Horror', 'Movie', 'Dark'] },
+  { id: 21, title: 'کارەکتەری سامورایی', category: 'کارەکتەر', badge: 'کارەکتەر', views: '23K', copies: '6K', rating: '4.8', imageTitle: 'Samurai', text: 'Legendary samurai warrior, traditional armor, cinematic rain, dramatic pose, ancient Japan atmosphere, realistic fantasy character art.', gradient: 'rose', tags: ['Samurai', 'Character', 'Warrior'] },
+  { id: 22, title: 'کارەکتەری ڤایکینگ', category: 'کارەکتەر', badge: 'نوێ', views: '15K', copies: '3K', rating: '4.7', imageTitle: 'Viking', text: 'Powerful viking warrior, fur cloak, snowy mountains, cinematic cold lighting, realistic fantasy portrait, ultra detailed character design.', gradient: 'blue', tags: ['Viking', 'Character', 'Fantasy'] },
+  { id: 23, title: 'سەربازی سایبەر', category: 'گەمینگ', badge: 'گەمینگ', views: '20K', copies: '5K', rating: '4.8', imageTitle: 'Cyber Soldier', text: 'Futuristic cyber soldier for game poster, neon armor, sci-fi battlefield, dramatic lighting, ultra detailed 3D game art style.', gradient: 'purple', tags: ['Gaming', 'Cyberpunk', 'Soldier'] },
+  { id: 24, title: 'وۆڵپەیپەری مۆبایل AMOLED', category: 'وۆڵپەیپەر', badge: 'AMOLED', views: '30K', copies: '9K', rating: '4.9', imageTitle: 'AMOLED Wallpaper', text: 'Minimal AMOLED mobile wallpaper, deep black background, glowing neon abstract shape, clean composition, high resolution, 9:16.', gradient: 'purple', tags: ['Wallpaper', 'AMOLED', 'Mobile'] }
 ];
 
-export const tags = ['#سینەمایی', '#پۆرترێت', '#4K', '#ChatGPT', '#Luxury', '#Anime'];
+export const tags = ['#سینەمایی', '#پۆرترێت', '#KurdishBride', '#Newroz', '#Ramadan', '#Kaaba', '#Couple', '#Hug', '#TwoPhotos', '#MoviePoster', '#LuxuryCar', '#Anime'];
