@@ -23,6 +23,8 @@ const ui = {
     preview: 'پێشبینین',
     categories: 'پۆلەکان',
     seeAll: 'هەمووی ببینە',
+    openCategories: 'کردنەوەی پۆلەکان',
+    closeCategories: 'داخستنی پۆلەکان',
     trending: 'ترێند لەم هەفتەیە',
     popular: 'پرۆمپتە بەناوبانگەکان',
     results: 'ئەنجامی گەڕان',
@@ -40,10 +42,10 @@ const ui = {
     promptCount: 'پرۆمپت'
   },
   EN: {
-    free: 'Free AI Prompt Library', hero: 'Every AI Prompt in One Place', desc: 'Ready-to-use prompts for photo editing, portraits, backgrounds, products, and cinematic styles.', searchPlaceholder: 'What do you want to create?', search: 'Search', today: 'Prompt of the Day', todayTitle: 'Golden Hour Cinematic Portrait', todayDesc: 'A professional prompt for cinematic, clean, social-media-ready portraits.', copy: 'Copy', copyPrompt: 'Copy Prompt', preview: 'Preview', categories: 'Categories', seeAll: 'See all', trending: 'Trending this week', popular: 'Popular prompts', results: 'Search results', prompt: 'Prompt', favorites: 'My Favorites', selected: 'saved', emptyTitle: 'No favorites yet', emptyDesc: 'Tap the heart on any card to save it here.', collections: 'Collections', home: 'Home', modalDesc: 'This prompt is ready to copy and use with ChatGPT Images, Gemini, Flux, Midjourney, and other AI image tools.', addFav: 'Add to Favorites', inFav: 'Saved in Favorites', copied: 'copied', promptCount: 'prompts'
+    free: 'Free AI Prompt Library', hero: 'Every AI Prompt in One Place', desc: 'Ready-to-use prompts for photo editing, portraits, backgrounds, products, and cinematic styles.', searchPlaceholder: 'What do you want to create?', search: 'Search', today: 'Prompt of the Day', todayTitle: 'Golden Hour Cinematic Portrait', todayDesc: 'A professional prompt for cinematic, clean, social-media-ready portraits.', copy: 'Copy', copyPrompt: 'Copy Prompt', preview: 'Preview', categories: 'Categories', seeAll: 'See all', openCategories: 'Open categories', closeCategories: 'Close categories', trending: 'Trending this week', popular: 'Popular prompts', results: 'Search results', prompt: 'Prompt', favorites: 'My Favorites', selected: 'saved', emptyTitle: 'No favorites yet', emptyDesc: 'Tap the heart on any card to save it here.', collections: 'Collections', home: 'Home', modalDesc: 'This prompt is ready to copy and use with ChatGPT Images, Gemini, Flux, Midjourney, and other AI image tools.', addFav: 'Add to Favorites', inFav: 'Saved in Favorites', copied: 'copied', promptCount: 'prompts'
   },
   AR: {
-    free: 'مكتبة موجهات AI مجانية', hero: 'كل موجهات الذكاء الاصطناعي في مكان واحد', desc: 'موجهات جاهزة لتعديل الصور والبورتريه والخلفيات والمنتجات والأسلوب السينمائي.', searchPlaceholder: 'ماذا تريد أن تنشئ؟', search: 'بحث', today: 'موجه اليوم', todayTitle: 'بورتريه سينمائي بإضاءة ذهبية', todayDesc: 'موجه احترافي لصناعة صور سينمائية واضحة وجاهزة للسوشيال ميديا.', copy: 'نسخ', copyPrompt: 'نسخ الموجه', preview: 'معاينة', categories: 'الأقسام', seeAll: 'عرض الكل', trending: 'الرائج هذا الأسبوع', popular: 'الموجهات الشائعة', results: 'نتائج البحث', prompt: 'الموجه', favorites: 'المفضلة', selected: 'محفوظ', emptyTitle: 'لا توجد مفضلات بعد', emptyDesc: 'اضغط على القلب في أي بطاقة لحفظها هنا.', collections: 'المجموعات', home: 'الرئيسية', modalDesc: 'هذا الموجه جاهز للنسخ والاستخدام مع ChatGPT Images و Gemini و Flux و Midjourney وأدوات صور AI الأخرى.', addFav: 'إضافة للمفضلة', inFav: 'موجود في المفضلة', copied: 'تم النسخ', promptCount: 'موجهات'
+    free: 'مكتبة موجهات AI مجانية', hero: 'كل موجهات الذكاء الاصطناعي في مكان واحد', desc: 'موجهات جاهزة لتعديل الصور والبورتريه والخلفيات والمنتجات والأسلوب السينمائي.', searchPlaceholder: 'ماذا تريد أن تنشئ؟', search: 'بحث', today: 'موجه اليوم', todayTitle: 'بورتريه سينمائي بإضاءة ذهبية', todayDesc: 'موجه احترافي لصناعة صور سينمائية واضحة وجاهزة للسوشيال ميديا.', copy: 'نسخ', copyPrompt: 'نسخ الموجه', preview: 'معاينة', categories: 'الأقسام', seeAll: 'عرض الكل', openCategories: 'فتح الأقسام', closeCategories: 'إغلاق الأقسام', trending: 'الرائج هذا الأسبوع', popular: 'الموجهات الشائعة', results: 'نتائج البحث', prompt: 'الموجه', favorites: 'المفضلة', selected: 'محفوظ', emptyTitle: 'لا توجد مفضلات بعد', emptyDesc: 'اضغط على القلب في أي بطاقة لحفظها هنا.', collections: 'المجموعات', home: 'الرئيسية', modalDesc: 'هذا الموجه جاهز للنسخ والاستخدام مع ChatGPT Images و Gemini و Flux و Midjourney وأدوات صور AI الأخرى.', addFav: 'إضافة للمفضلة', inFav: 'موجود في المفضلة', copied: 'تم النسخ', promptCount: 'موجهات'
   }
 };
 
@@ -52,6 +54,7 @@ export default function App() {
   const [copied, setCopied] = useState('');
   const [activePrompt, setActivePrompt] = useState(null);
   const [language, setLanguage] = useState('KU');
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState(() => {
     try { return JSON.parse(localStorage.getItem('promptstan-favorites') || '[]'); } catch { return []; }
   });
@@ -79,6 +82,7 @@ export default function App() {
   }
   function toggleFavorite(id) { setFavoriteIds((cur) => cur.includes(id) ? cur.filter((item) => item !== id) : [...cur, id]); }
   function scrollToSection(id) { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }); }
+  function chooseCategory(name) { setQuery(name); setCategoriesOpen(false); scrollToSection('search'); }
 
   const PromptCard = ({ item }) => {
     const isFavorite = favoriteIds.includes(item.id);
@@ -133,8 +137,6 @@ export default function App() {
 
       <section className="feature"><div className="featureImage premiumScene"><div className="orbit one" /><div className="orbit two" /><div className="glassPreview"><span>Before</span><span>After</span></div><b>Prompt of the Day</b></div><div className="featureText"><div className="sectionLabel"><Star size={18} /> {t.today}</div><h2>{t.todayTitle}</h2><p>{t.todayDesc}</p><div className="featureStats"><span><Eye size={16} /> 42K</span><span><Heart size={16} /> 8K</span><span><Zap size={16} /> 12K</span></div><div className="featureActions"><button className="primary" onClick={() => copyText(promptItems[0].text, promptItems[0].title)}>📋 {t.copyPrompt}</button><button className="previewButton" onClick={() => setActivePrompt(promptItems[0])}><Eye size={18} /> {t.preview}</button></div></div></section>
 
-      <section className="section" id="categories"><div className="sectionTitle"><h2>📂 {t.categories}</h2><a>{t.seeAll}</a></div><div className="categoryGrid">{categories.map((category) => <button className="categoryCard" key={category.slug} onClick={() => setQuery(category.name)}><span>{category.icon}</span><strong>{category.name}</strong><small>{category.count} {t.promptCount}</small></button>)}</div></section>
-
       <section className="section"><div className="sectionTitle"><h2><Flame size={24} /> {t.trending}</h2><a>3 {t.promptCount}</a></div><div className="miniRow">{promptItems.slice(0, 3).map((item) => <button key={item.id} className="miniTrend" onClick={() => setActivePrompt(item)}><span>{item.badge}</span><strong>{item.title}</strong><small>👁 {item.views} • 📋 {item.copies}</small></button>)}</div></section>
 
       <section className="section"><div className="sectionTitle"><h2><Flame size={24} /> {query ? t.results : t.popular}</h2><a>{filteredPrompts.length} {t.promptCount}</a></div><div className="promptGrid">{filteredPrompts.map((item) => <PromptCard item={item} key={item.id} />)}</div></section>
@@ -142,6 +144,12 @@ export default function App() {
       <section className="section" id="favorites"><div className="sectionTitle"><h2><Heart size={24} /> {t.favorites}</h2><a>{favoriteIds.length} {t.selected}</a></div>{favoritePrompts.length === 0 ? <div className="emptyState"><Heart size={34} /><h3>{t.emptyTitle}</h3><p>{t.emptyDesc}</p></div> : <div className="miniRow">{favoritePrompts.map((item) => <button key={item.id} className="miniTrend" onClick={() => setActivePrompt(item)}><span>❤️ {t.favorites}</span><strong>{item.title}</strong><small>{item.category}</small></button>)}</div>}</section>
 
       <section className="collections"><h2>💎 {t.collections}</h2><div className="collectionRow"><button>TikTok Viral</button><button>Wedding</button><button>Luxury</button><button>Instagram</button></div></section>
+
+      <section className="section categoryDrawer" id="categories">
+        <div className="sectionTitle"><h2>📂 {t.categories}</h2><button className="categoryToggle" onClick={() => setCategoriesOpen((open) => !open)}>{categoriesOpen ? t.closeCategories : t.openCategories}</button></div>
+        {categoriesOpen && <div className="categoryPanel"><div className="categoryGrid">{categories.map((category) => <button className="categoryCard" key={category.slug} onClick={() => chooseCategory(category.name)}><span>{category.icon}</span><strong>{category.name}</strong><small>{category.count} {t.promptCount}</small></button>)}</div></div>}
+      </section>
+
       <footer><strong>پڕۆمپتستان</strong><p>هەموو پرۆمپتێک، لە شوێنێک.</p></footer>
       <nav className="bottomNav"><button onClick={() => scrollToSection('home')}><Home size={20} /><span>{t.home}</span></button><button onClick={() => scrollToSection('search')}><Search size={20} /><span>{t.search}</span></button><button onClick={() => scrollToSection('favorites')}><Heart size={20} /><span>{favoriteIds.length}</span></button><button onClick={() => scrollToSection('categories')}><Layers size={20} /><span>{t.categories}</span></button><button onClick={() => setLanguage(language === 'KU' ? 'EN' : language === 'EN' ? 'AR' : 'KU')}><Globe2 size={20} /><span>{language}</span></button></nav>
     </main>
