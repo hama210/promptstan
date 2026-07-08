@@ -3,6 +3,9 @@
   "name": "promptstan-api",
   "main": "worker/index.js",
   "compatibility_date": "2026-07-08",
+  "triggers": {
+    "crons": ["0 6 * * *"]
+  },
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS"
@@ -19,5 +22,8 @@
       "binding": "PROMPT_IMAGES",
       "bucket_name": "promptstan-images"
     }
-  ]
+  ],
+  "vars": {
+    "DAILY_POST_ENABLED": "true"
+  }
 }
