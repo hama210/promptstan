@@ -3,7 +3,7 @@ import { Copy, Eye, Flame, Globe2, Heart, Home, Layers, Search, Sparkles, Star, 
 import { categories, promptItems, tags } from './data/site.js';
 
 const languages = [
-  { code: 'KU', label: 'کوردی', flag: '🏴' },
+  { code: 'KU', label: 'کوردی', flag: '☀️' },
   { code: 'EN', label: 'English', flag: '🇬🇧' },
   { code: 'AR', label: 'العربية', flag: '🇸🇦' }
 ];
