@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Copy, Eye, Flame, Globe2, Heart, Search, Sparkles, Star, Wand2, Zap } from 'lucide-react';
+import { Copy, Eye, Flame, Globe2, Heart, Search, Sparkles, Star, Wand2, X, Zap } from 'lucide-react';
 import { categories, promptItems, tags } from './data/site.js';
 
 export default function App() {
   const [query, setQuery] = useState('');
   const [copied, setCopied] = useState('');
+  const [activePrompt, setActivePrompt] = useState(null);
 
   const filteredPrompts = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -24,6 +25,44 @@ export default function App() {
   return (
     <main className="app" dir="rtl">
       {copied && <div className="toast">✅ {copied} کۆپی کرا</div>}
+
+      {activePrompt && (
+        <div className="modalOverlay" onClick={() => setActivePrompt(null)}>
+          <section className="promptModal" onClick={(event) => event.stopPropagation()}>
+            <button className="modalClose" onClick={() => setActivePrompt(null)}><X size={20} /></button>
+            <div className={`modalVisual ${activePrompt.gradient}`}>
+              <span>{activePrompt.badge}</span>
+              <strong>{activePrompt.imageTitle}</strong>
+            </div>
+            <div className="modalContent">
+              <div className="promptMeta modalMeta">
+                <span>{activePrompt.category}</span>
+                <span>⭐ {activePrompt.rating}</span>
+                <span>👁 {activePrompt.views}</span>
+                <span>📋 {activePrompt.copies}</span>
+              </div>
+              <h2>{activePrompt.title}</h2>
+              <p className="modalDescription">ئەم پرۆمپتە ئامادەیە بۆ کۆپی کردن و بەکارهێنان لە ChatGPT Images، Gemini، Flux، Midjourney و هەر ئامرازی AI ـیەکی وێنە.</p>
+              <div className="promptBox">
+                <div className="promptBoxHeader">
+                  <strong>پرۆمپت</strong>
+                  <button onClick={() => copyText(activePrompt.text, activePrompt.title)}><Copy size={16} /> کۆپی</button>
+                </div>
+                <p>{activePrompt.text}</p>
+              </div>
+              <div className="tagList">
+                {activePrompt.tags.map((tag) => <span key={tag}>#{tag}</span>)}
+              </div>
+              <div className="modelGrid">
+                <span>ChatGPT Images</span>
+                <span>Gemini</span>
+                <span>Flux</span>
+                <span>Midjourney</span>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
 
       <nav className="navbar">
         <div className="brand">
@@ -75,7 +114,10 @@ export default function App() {
             <span><Heart size={16} /> 8K لایک</span>
             <span><Zap size={16} /> 12K کۆپی</span>
           </div>
-          <button className="primary" onClick={() => copyText(promptItems[0].text, promptItems[0].title)}>📋 کۆپی پرۆمپت</button>
+          <div className="featureActions">
+            <button className="primary" onClick={() => copyText(promptItems[0].text, promptItems[0].title)}>📋 کۆپی پرۆمپت</button>
+            <button className="previewButton" onClick={() => setActivePrompt(promptItems[0])}><Eye size={18} /> پێشبینین</button>
+          </div>
         </div>
       </section>
 
@@ -120,7 +162,7 @@ export default function App() {
                 <button onClick={() => copyText(item.text, item.title)} className="copyButton">
                   <Copy size={18} /> کۆپی
                 </button>
-                <button className="previewButton"><Eye size={18} /> پێشبینین</button>
+                <button className="previewButton" onClick={() => setActivePrompt(item)}><Eye size={18} /> پێشبینین</button>
               </div>
             </article>
           ))}
