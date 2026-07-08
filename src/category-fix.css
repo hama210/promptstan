@@ -1,0 +1,34 @@
+.categoryDrawer {
+  margin-top: 8px;
+}
+
+.categoryToggle {
+  border: 0;
+  border-radius: 14px;
+  background: #00f5a0;
+  color: #07100d;
+  padding: 10px 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.categoryPanel {
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(20,20,26,.45);
+  border-radius: 28px;
+  padding: 16px;
+}
+
+@media (max-width: 560px) {
+  .categoryDrawer .sectionTitle {
+    align-items: stretch;
+  }
+
+  .categoryToggle {
+    width: 100%;
+  }
+}
