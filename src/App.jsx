@@ -1,11 +1,34 @@
-import { useMemo, useState } from 'react';
-import { Copy, Eye, Flame, Globe2, Heart, Search, Sparkles, Star, Wand2, X, Zap } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Copy, Eye, Flame, Globe2, Heart, Home, Layers, Search, Sparkles, Star, Wand2, X, Zap } from 'lucide-react';
 import { categories, promptItems, tags } from './data/site.js';
+
+const languages = [
+  { code: 'KU', label: 'کوردی', flag: '🏴' },
+  { code: 'EN', label: 'English', flag: '🇬🇧' },
+  { code: 'AR', label: 'العربية', flag: '🇸🇦' }
+];
 
 export default function App() {
   const [query, setQuery] = useState('');
   const [copied, setCopied] = useState('');
   const [activePrompt, setActivePrompt] = useState(null);
+  const [language, setLanguage] = useState('KU');
+  const [favoriteIds, setFavoriteIds] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('promptstan-favorites') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('promptstan-favorites', JSON.stringify(favoriteIds));
+  }, [favoriteIds]);
+
+  const favoritePrompts = useMemo(
+    () => promptItems.filter((item) => favoriteIds.includes(item.id)),
+    [favoriteIds]
+  );
 
   const filteredPrompts = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -20,6 +43,14 @@ export default function App() {
     navigator.clipboard.writeText(text);
     setCopied(title);
     window.setTimeout(() => setCopied(''), 1800);
+  }
+
+  function toggleFavorite(id) {
+    setFavoriteIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+  }
+
+  function scrollToSection(id) {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
   }
 
   return (
@@ -59,6 +90,10 @@ export default function App() {
                 <span>Flux</span>
                 <span>Midjourney</span>
               </div>
+              <button className={favoriteIds.includes(activePrompt.id) ? 'favoriteWide active' : 'favoriteWide'} onClick={() => toggleFavorite(activePrompt.id)}>
+                <Heart size={18} fill={favoriteIds.includes(activePrompt.id) ? 'currentColor' : 'none'} />
+                {favoriteIds.includes(activePrompt.id) ? 'لە دڵخوازەکاندا هەیە' : 'زیادکردن بۆ دڵخوازەکان'}
+              </button>
             </div>
           </section>
         </div>
@@ -74,17 +109,23 @@ export default function App() {
         </div>
 
         <div className="navActions">
-          <button className="ghost"><Globe2 size={18} /> KU</button>
-          <button className="primarySmall">دەستپێک</button>
+          <div className="languageTabs">
+            {languages.map((item) => (
+              <button key={item.code} className={language === item.code ? 'active' : ''} onClick={() => setLanguage(item.code)}>
+                {item.flag} {item.code}
+              </button>
+            ))}
+          </div>
+          <button className="ghost" onClick={() => scrollToSection('favorites')}><Heart size={18} /> {favoriteIds.length}</button>
         </div>
       </nav>
 
-      <section className="hero">
+      <section className="hero" id="home">
         <div className="heroBadge"><Sparkles size={18} /> کتێبخانەی فری پرۆمپتی AI</div>
         <h1>شوێنی هەموو پرۆمپتەکانی AI</h1>
         <p>پرۆمپتی ئامادە بۆ دەستکاریکردنی وێنە، پۆرترێت، باکگراوند، بەرهەم و ستایلی سینەمایی.</p>
 
-        <div className="searchBox">
+        <div className="searchBox" id="search">
           <Search size={22} />
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="چی دەتەوێت دروست بکەیت؟" />
           <button><Search size={18} /> گەڕان</button>
@@ -121,7 +162,7 @@ export default function App() {
         </div>
       </section>
 
-      <section className="section">
+      <section className="section" id="categories">
         <div className="sectionTitle">
           <h2>📂 پۆلەکان</h2>
           <a>هەمووی ببینە</a>
@@ -139,34 +180,80 @@ export default function App() {
 
       <section className="section">
         <div className="sectionTitle">
+          <h2><Flame size={24} /> ترێند لەم هەفتەیە</h2>
+          <a>{promptItems.slice(0, 3).length} پرۆمپت</a>
+        </div>
+        <div className="miniRow">
+          {promptItems.slice(0, 3).map((item) => (
+            <button key={item.id} className="miniTrend" onClick={() => setActivePrompt(item)}>
+              <span>{item.badge}</span>
+              <strong>{item.title}</strong>
+              <small>👁 {item.views} • 📋 {item.copies}</small>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="section">
+        <div className="sectionTitle">
           <h2><Flame size={24} /> {query ? 'ئەنجامی گەڕان' : 'پرۆمپتە بەناوبانگەکان'}</h2>
           <a>{filteredPrompts.length} پرۆمپت</a>
         </div>
 
         <div className="promptGrid">
-          {filteredPrompts.map((item) => (
-            <article className="promptCard" key={item.id}>
-              <div className={`promptImage ${item.gradient}`}>
-                <span>{item.badge}</span>
-                <strong>{item.imageTitle}</strong>
-              </div>
-              <div className="promptMeta">
-                <span>{item.category}</span>
-                <span>⭐ {item.rating}</span>
-                <span>👁 {item.views}</span>
-                <span>📋 {item.copies}</span>
-              </div>
-              <h3>{item.title}</h3>
-              <p>{item.text}</p>
-              <div className="cardActions">
-                <button onClick={() => copyText(item.text, item.title)} className="copyButton">
-                  <Copy size={18} /> کۆپی
+          {filteredPrompts.map((item) => {
+            const isFavorite = favoriteIds.includes(item.id);
+            return (
+              <article className="promptCard" key={item.id}>
+                <button className={isFavorite ? 'heartButton active' : 'heartButton'} onClick={() => toggleFavorite(item.id)} aria-label="favorite">
+                  <Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} />
                 </button>
-                <button className="previewButton" onClick={() => setActivePrompt(item)}><Eye size={18} /> پێشبینین</button>
-              </div>
-            </article>
-          ))}
+                <div className={`promptImage ${item.gradient}`}>
+                  <span>{item.badge}</span>
+                  <strong>{item.imageTitle}</strong>
+                </div>
+                <div className="promptMeta">
+                  <span>{item.category}</span>
+                  <span>⭐ {item.rating}</span>
+                  <span>👁 {item.views}</span>
+                  <span>📋 {item.copies}</span>
+                </div>
+                <h3>{item.title}</h3>
+                <p>{item.text}</p>
+                <div className="cardActions">
+                  <button onClick={() => copyText(item.text, item.title)} className="copyButton">
+                    <Copy size={18} /> کۆپی
+                  </button>
+                  <button className="previewButton" onClick={() => setActivePrompt(item)}><Eye size={18} /> پێشبینین</button>
+                </div>
+              </article>
+            );
+          })}
         </div>
+      </section>
+
+      <section className="section" id="favorites">
+        <div className="sectionTitle">
+          <h2><Heart size={24} /> دڵخوازەکانم</h2>
+          <a>{favoriteIds.length} هەڵبژێردراو</a>
+        </div>
+        {favoritePrompts.length === 0 ? (
+          <div className="emptyState">
+            <Heart size={34} />
+            <h3>هێشتا هیچ پرۆمپتێکت دڵخواز نەکردووە</h3>
+            <p>لەسەر دڵی هەر کارتەک کلیک بکە بۆ پاراستنی لە دڵخوازەکانت.</p>
+          </div>
+        ) : (
+          <div className="miniRow">
+            {favoritePrompts.map((item) => (
+              <button key={item.id} className="miniTrend" onClick={() => setActivePrompt(item)}>
+                <span>❤️ دڵخواز</span>
+                <strong>{item.title}</strong>
+                <small>{item.category}</small>
+              </button>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="collections">
@@ -183,6 +270,14 @@ export default function App() {
         <strong>پڕۆمپتستان</strong>
         <p>هەموو پرۆمپتێک، لە شوێنێک.</p>
       </footer>
+
+      <nav className="bottomNav">
+        <button onClick={() => scrollToSection('home')}><Home size={20} /><span>ماڵەوە</span></button>
+        <button onClick={() => scrollToSection('search')}><Search size={20} /><span>گەڕان</span></button>
+        <button onClick={() => scrollToSection('favorites')}><Heart size={20} /><span>{favoriteIds.length}</span></button>
+        <button onClick={() => scrollToSection('categories')}><Layers size={20} /><span>پۆلەکان</span></button>
+        <button onClick={() => setLanguage(language === 'KU' ? 'EN' : language === 'EN' ? 'AR' : 'KU')}><Globe2 size={20} /><span>{language}</span></button>
+      </nav>
     </main>
   );
 }
