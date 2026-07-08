@@ -1,11 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;600;700;800&display=swap');
 
 * { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
 body { margin: 0; min-height: 100vh; background: #09090b; color: #fff; font-family: 'Noto Sans Arabic', system-ui, sans-serif; }
 button, input { font: inherit; } button { cursor: pointer; }
 
-.app { min-height: 100vh; overflow: hidden; background: radial-gradient(circle at 82% 4%, rgba(139, 92, 246, 0.34), transparent 30%), radial-gradient(circle at 10% 35%, rgba(0, 245, 160, 0.18), transparent 25%), linear-gradient(180deg, #09090b 0%, #0e0e14 45%, #09090b 100%); }
-.toast { position: fixed; left: 20px; bottom: 20px; z-index: 50; background: rgba(0,245,160,.95); color: #07100d; padding: 13px 18px; border-radius: 18px; font-weight: 800; box-shadow: 0 18px 50px rgba(0,245,160,.28); }
+.app { min-height: 100vh; overflow: hidden; padding-bottom: 86px; background: radial-gradient(circle at 82% 4%, rgba(139, 92, 246, 0.34), transparent 30%), radial-gradient(circle at 10% 35%, rgba(0, 245, 160, 0.18), transparent 25%), linear-gradient(180deg, #09090b 0%, #0e0e14 45%, #09090b 100%); }
+.toast { position: fixed; left: 20px; bottom: 92px; z-index: 50; background: rgba(0,245,160,.95); color: #07100d; padding: 13px 18px; border-radius: 18px; font-weight: 800; box-shadow: 0 18px 50px rgba(0,245,160,.28); }
 .modalOverlay { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,.72); backdrop-filter: blur(14px); padding: 18px; display: grid; place-items: center; overflow-y: auto; }
 .promptModal { width: min(1050px, 100%); max-height: 92vh; overflow: auto; border: 1px solid rgba(255,255,255,.13); border-radius: 34px; background: rgba(12,12,18,.96); box-shadow: 0 30px 100px rgba(0,0,0,.5); display: grid; grid-template-columns: .95fr 1.05fr; gap: 0; position: relative; }
 .modalClose { position: absolute; top: 16px; left: 16px; z-index: 2; width: 42px; height: 42px; border-radius: 50%; border: 1px solid rgba(255,255,255,.14); background: rgba(0,0,0,.35); color: white; display: grid; place-items: center; }
@@ -25,12 +26,17 @@ button, input { font: inherit; } button { cursor: pointer; }
 .tagList span, .modelGrid span { border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.06); border-radius: 999px; padding: 8px 12px; color: #d4d4dd; }
 .modelGrid { margin-top: 16px; }
 .modelGrid span { color: #00f5a0; }
+.favoriteWide { margin-top: 18px; width: 100%; justify-content: center; border: 1px solid rgba(255,255,255,.12); border-radius: 16px; background: rgba(255,255,255,.06); color: white; padding: 12px; display: inline-flex; align-items: center; gap: 8px; }
+.favoriteWide.active { color: #ff5c8a; border-color: rgba(255,92,138,.45); background: rgba(255,92,138,.09); }
 
 .navbar { max-width: 1180px; margin: 0 auto; padding: 24px 20px; display: flex; align-items: center; justify-content: space-between; }
 .brand { display: flex; align-items: center; gap: 12px; }
 .logoMark { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 16px; background: linear-gradient(135deg, #8b5cf6, #00f5a0); box-shadow: 0 0 30px rgba(0, 245, 160, .26); }
 .brand strong { display: block; font-size: 22px; } .brand span { display: block; color: #a1a1aa; font-size: 13px; margin-top: 2px; }
 .navActions { display: flex; align-items: center; gap: 10px; }
+.languageTabs { display: flex; gap: 6px; padding: 5px; border-radius: 16px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); }
+.languageTabs button { border: 0; border-radius: 12px; background: transparent; color: #c4c4cf; padding: 7px 10px; }
+.languageTabs button.active { background: rgba(0,245,160,.12); color: #00f5a0; }
 .ghost, .primarySmall, .primary, .copyButton, .previewButton, .tags button, .collectionRow button { border: 1px solid rgba(255,255,255,.12); border-radius: 14px; background: rgba(255,255,255,.06); color: white; padding: 10px 14px; display: inline-flex; align-items: center; gap: 8px; }
 .primarySmall, .primary { border: 0; background: linear-gradient(135deg, #8b5cf6, #00f5a0); color: #07100d; font-weight: 800; }
 
@@ -65,9 +71,16 @@ button, input { font: inherit; } button { cursor: pointer; }
 .categoryGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
 .categoryCard { min-height: 132px; border: 1px solid rgba(255,255,255,.10); background: rgba(20,20,26,.75); color: white; border-radius: 24px; display: grid; place-items: center; gap: 6px; transition: .25s ease; }
 .categoryCard span { font-size: 28px; } .categoryCard small { color: #00f5a0; } .categoryCard:hover { transform: translateY(-4px); border-color: #00f5a0; box-shadow: 0 0 30px rgba(0,245,160,.12); }
+.miniRow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.miniTrend { text-align: right; border: 1px solid rgba(255,255,255,.1); border-radius: 22px; background: rgba(255,255,255,.05); color: white; padding: 18px; display: grid; gap: 8px; }
+.miniTrend span { color: #00f5a0; font-size: 13px; } .miniTrend small { color: #a1a1aa; }
+.emptyState { border: 1px dashed rgba(255,255,255,.16); border-radius: 28px; padding: 34px; text-align: center; color: #c4c4cf; background: rgba(255,255,255,.04); }
+.emptyState svg { color: #ff5c8a; }
 .promptGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
-.promptCard { border: 1px solid rgba(255,255,255,.10); border-radius: 28px; background: rgba(20,20,26,.82); padding: 14px; transition: .25s ease; }
+.promptCard { position: relative; border: 1px solid rgba(255,255,255,.10); border-radius: 28px; background: rgba(20,20,26,.82); padding: 14px; transition: .25s ease; }
 .promptCard:hover { transform: translateY(-5px); border-color: rgba(139,92,246,.8); box-shadow: 0 18px 50px rgba(139,92,246,.12); }
+.heartButton { position: absolute; top: 24px; left: 24px; z-index: 3; width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(255,255,255,.18); background: rgba(0,0,0,.34); color: white; display: grid; place-items: center; }
+.heartButton.active { color: #ff5c8a; border-color: rgba(255,92,138,.55); background: rgba(255,92,138,.16); }
 .promptImage { height: 190px; border-radius: 22px; padding: 14px; display: flex; align-items: start; justify-content: space-between; flex-direction: column; overflow: hidden; position: relative; }
 .promptImage:after { content: ''; position: absolute; inset: 35% -20% -20% -20%; background: radial-gradient(circle, rgba(255,255,255,.34), transparent 42%); }
 .promptImage span, .promptImage strong { position: relative; z-index: 1; }
@@ -81,5 +94,8 @@ button, input { font: inherit; } button { cursor: pointer; }
 .copyButton { background: linear-gradient(135deg, #8b5cf6, #00f5a0); color: #07100d; font-weight: 800; border: 0; }
 .collectionRow { display: flex; flex-wrap: wrap; gap: 12px; }
 footer { border-top: 1px solid rgba(255,255,255,.1); padding-top: 28px; color: #a1a1aa; } footer strong { color: #fff; }
-@media (max-width: 900px) { .feature { grid-template-columns: 1fr; } .categoryGrid { grid-template-columns: repeat(3, 1fr); } .promptGrid { grid-template-columns: repeat(2, 1fr); } .promptModal { grid-template-columns: 1fr; } .modalVisual { min-height: 320px; } }
-@media (max-width: 560px) { .navbar { padding-top: 18px; } .primarySmall { display: none; } .hero { margin-top: 26px; } .hero h1 { letter-spacing: -1px; } .searchBox { flex-wrap: wrap; } .searchBox button { width: 100%; justify-content: center; } .featureImage { min-height: 260px; } .glassPreview { width: 170px; height: 104px; } .categoryGrid { grid-template-columns: repeat(2, 1fr); } .promptGrid { grid-template-columns: 1fr; } .cardActions, .featureActions { grid-template-columns: 1fr; } .modalOverlay { padding: 8px; } .promptModal { border-radius: 24px; max-height: 96vh; } .modalContent { padding: 24px; } }
+.bottomNav { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 35; width: min(520px, calc(100% - 24px)); display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; padding: 8px; border: 1px solid rgba(255,255,255,.13); border-radius: 24px; background: rgba(12,12,18,.82); backdrop-filter: blur(18px); box-shadow: 0 18px 60px rgba(0,0,0,.35); }
+.bottomNav button { border: 0; border-radius: 18px; background: transparent; color: #c4c4cf; display: grid; place-items: center; gap: 3px; padding: 8px 4px; font-size: 12px; }
+.bottomNav button:hover { color: #00f5a0; background: rgba(0,245,160,.08); }
+@media (max-width: 900px) { .feature { grid-template-columns: 1fr; } .categoryGrid { grid-template-columns: repeat(3, 1fr); } .promptGrid { grid-template-columns: repeat(2, 1fr); } .promptModal { grid-template-columns: 1fr; } .modalVisual { min-height: 320px; } .miniRow { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .navbar { padding-top: 18px; } .languageTabs button { padding: 7px 8px; font-size: 12px; } .navActions { gap: 6px; } .hero { margin-top: 26px; } .hero h1 { letter-spacing: -1px; } .searchBox { flex-wrap: wrap; } .searchBox button { width: 100%; justify-content: center; } .featureImage { min-height: 260px; } .glassPreview { width: 170px; height: 104px; } .categoryGrid { grid-template-columns: repeat(2, 1fr); } .promptGrid { grid-template-columns: 1fr; } .cardActions, .featureActions { grid-template-columns: 1fr; } .modalOverlay { padding: 8px; } .promptModal { border-radius: 24px; max-height: 96vh; } .modalContent { padding: 24px; } }
