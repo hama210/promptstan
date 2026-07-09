@@ -164,6 +164,7 @@ async function runDailyPostNow(request, env) {
 }
 
 async function adminDashboard(request, env) {
+  await ensureImageColumns(env);
   const [prompts, categories, tags] = await Promise.all([
     env.DB.prepare('SELECT COUNT(*) AS count, COALESCE(SUM(views),0) AS views, COALESCE(SUM(copies),0) AS copies FROM prompts').first(),
     env.DB.prepare('SELECT COUNT(*) AS count FROM categories').first(),
@@ -173,15 +174,18 @@ async function adminDashboard(request, env) {
 }
 
 async function createPromptFromRequest(request, env) {
+  await ensureImageColumns(env);
   const body = await request.json();
   const category = await getOrCreateCategory(env, body.category_slug || 'person-edit');
   const slug = body.slug || slugify(body.title_en || body.title_ku || `prompt-${Date.now()}`);
-  const previewImageUrl = isFakePreview(body.preview_image_url) ? null : body.preview_image_url || null;
+  const previewImageUrl = cleanImageUrl(body.preview_image_url);
+  const beforeImageUrl = cleanImageUrl(body.before_image_url);
+  const afterImageUrl = cleanImageUrl(body.after_image_url);
 
-  const result = await env.DB.prepare('INSERT INTO prompts (slug, category_id, title_ku, title_en, title_ar, description_ku, description_en, description_ar, prompt_text, negative_prompt, preview_image_url, difficulty, rating, is_featured, is_trending, published_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)').bind(slug, category.id, body.title_ku, body.title_en || null, body.title_ar || null, body.description_ku || null, body.description_en || null, body.description_ar || null, body.prompt_text, body.negative_prompt || null, previewImageUrl, body.difficulty || 'easy', body.rating || 4.8, body.is_featured ? 1 : 0, body.is_trending ? 1 : 0).run();
+  const result = await env.DB.prepare('INSERT INTO prompts (slug, category_id, title_ku, title_en, title_ar, description_ku, description_en, description_ar, prompt_text, negative_prompt, preview_image_url, before_image_url, after_image_url, difficulty, rating, is_featured, is_trending, published_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)').bind(slug, category.id, body.title_ku, body.title_en || null, body.title_ar || null, body.description_ku || null, body.description_en || null, body.description_ar || null, body.prompt_text, body.negative_prompt || null, previewImageUrl, beforeImageUrl, afterImageUrl, body.difficulty || 'easy', body.rating || 4.8, body.is_featured ? 1 : 0, body.is_trending ? 1 : 0).run();
   const promptId = result.meta.last_row_id;
   await attachTags(env, promptId, body.tags || []);
-  return json({ ok: true, id: promptId, slug, preview_image_url: previewImageUrl }, 201);
+  return json({ ok: true, id: promptId, slug, preview_image_url: previewImageUrl, before_image_url: beforeImageUrl, after_image_url: afterImageUrl }, 201);
 }
 
 async function getOrCreateCategory(env, slug) {
@@ -224,6 +228,20 @@ async function adminOnly(request, env, handler) {
   return handler(request, env);
 }
 
+async function ensureImageColumns(env) {
+  for (const column of ['before_image_url', 'after_image_url']) {
+    try {
+      await env.DB.prepare(`ALTER TABLE prompts ADD COLUMN ${column} TEXT`).run();
+    } catch {}
+  }
+}
+
+function cleanImageUrl(value) {
+  const image = String(value || '').trim();
+  if (!image || image.includes('/api/preview/')) return null;
+  return image;
+}
+
 async function listCategories(env) {
   const result = await env.DB.prepare('SELECT * FROM categories ORDER BY name_ku ASC').all();
   return json(result.results || []);
@@ -237,11 +255,13 @@ async function getCategory(env, slug) {
 }
 
 async function listPrompts(env) {
+  await ensureImageColumns(env);
   const result = await env.DB.prepare('SELECT prompts.*, categories.slug AS category_slug, categories.name_ku AS category_name FROM prompts JOIN categories ON prompts.category_id = categories.id ORDER BY prompts.published_at DESC LIMIT 100').all();
   return json(result.results || []);
 }
 
 async function getPrompt(env, slug) {
+  await ensureImageColumns(env);
   const prompt = await env.DB.prepare('SELECT prompts.*, categories.slug AS category_slug, categories.name_ku AS category_name FROM prompts JOIN categories ON prompts.category_id = categories.id WHERE prompts.slug = ?').bind(slug).first();
   if (!prompt) return json({ error: 'Prompt not found' }, 404);
   const tags = await env.DB.prepare('SELECT tags.* FROM tags JOIN prompt_tags ON prompt_tags.tag_id = tags.id WHERE prompt_tags.prompt_id = ? ORDER BY tags.name ASC').bind(prompt.id).all();
@@ -259,11 +279,13 @@ async function trendingTags(env) {
 }
 
 async function trendingPrompts(env) {
+  await ensureImageColumns(env);
   const result = await env.DB.prepare('SELECT prompts.*, categories.slug AS category_slug, categories.name_ku AS category_name FROM prompts JOIN categories ON prompts.category_id = categories.id WHERE prompts.is_trending = 1 OR prompts.is_featured = 1 ORDER BY prompts.copies DESC, prompts.views DESC LIMIT 30').all();
   return json(result.results || []);
 }
 
 async function searchPrompts(env, query) {
+  await ensureImageColumns(env);
   const term = `%${query.trim().replace('#', '')}%`;
   if (!query.trim()) return listPrompts(env);
   const result = await env.DB.prepare('SELECT DISTINCT prompts.*, categories.slug AS category_slug, categories.name_ku AS category_name FROM prompts JOIN categories ON prompts.category_id = categories.id LEFT JOIN prompt_tags ON prompt_tags.prompt_id = prompts.id LEFT JOIN tags ON tags.id = prompt_tags.tag_id WHERE prompts.title_ku LIKE ? OR prompts.title_en LIKE ? OR prompts.title_ar LIKE ? OR prompts.prompt_text LIKE ? OR categories.name_ku LIKE ? OR tags.name LIKE ? OR tags.slug LIKE ? ORDER BY prompts.copies DESC, prompts.views DESC LIMIT 100').bind(term, term, term, term, term, term, term).all();
@@ -274,10 +296,6 @@ async function increaseCounter(env, id, field) {
   if (!['views', 'copies'].includes(field)) return json({ error: 'Invalid counter' }, 400);
   await env.DB.prepare(`UPDATE prompts SET ${field} = ${field} + 1 WHERE id = ?`).bind(id).run();
   return json({ ok: true });
-}
-
-function isFakePreview(value) {
-  return String(value || '').includes('/api/preview/');
 }
 
 function slugify(value) {
