@@ -20,6 +20,7 @@ export default function AdminPanel() {
   const [token, setToken] = useState(() => localStorage.getItem('promptstan-admin-token') || '');
   const [savedToken, setSavedToken] = useState(() => localStorage.getItem('promptstan-admin-token') || '');
   const [dashboard, setDashboard] = useState(null);
+  const [prompts, setPrompts] = useState([]);
   const [form, setForm] = useState(emptyPrompt);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -27,6 +28,7 @@ export default function AdminPanel() {
   const authHeaders = savedToken ? { Authorization: `Bearer ${savedToken}` } : {};
 
   useEffect(() => {
+    loadPublicPrompts();
     if (savedToken) loadDashboard();
   }, [savedToken]);
 
@@ -34,6 +36,14 @@ export default function AdminPanel() {
     localStorage.setItem('promptstan-admin-token', token);
     setSavedToken(token);
     setMessage('Admin token saved.');
+  }
+
+  async function loadPublicPrompts() {
+    try {
+      const res = await fetch(`${API_BASE}/api/prompts`);
+      const data = await res.json();
+      setPrompts(Array.isArray(data) ? data : []);
+    } catch {}
   }
 
   async function loadDashboard() {
@@ -44,6 +54,7 @@ export default function AdminPanel() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Dashboard failed');
       setDashboard(data);
+      await loadPublicPrompts();
     } catch (error) {
       setMessage(error.message);
     } finally {
@@ -59,7 +70,7 @@ export default function AdminPanel() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Daily post failed');
       setMessage(data.skipped ? 'Daily prompt already published today.' : `Daily prompt published: ${data.slug}`);
-      loadDashboard();
+      await loadDashboard();
     } catch (error) {
       setMessage(error.message);
     } finally {
@@ -88,7 +99,7 @@ export default function AdminPanel() {
       if (!res.ok) throw new Error(data.error || 'Create prompt failed');
       setMessage(`Prompt created: ${data.slug}`);
       setForm(emptyPrompt);
-      loadDashboard();
+      await loadDashboard();
     } catch (error) {
       setMessage(error.message);
     } finally {
@@ -119,25 +130,10 @@ export default function AdminPanel() {
       {message && <div className="adminMessage">{message}</div>}
 
       <section className="adminGrid">
-        <div className="adminCard statCard">
-          <BarChart3 size={28} />
-          <span>Prompts</span>
-          <strong>{dashboard?.prompts?.count ?? '-'}</strong>
-        </div>
-        <div className="adminCard statCard">
-          <Sparkles size={28} />
-          <span>Views</span>
-          <strong>{dashboard?.prompts?.views ?? '-'}</strong>
-        </div>
-        <div className="adminCard statCard">
-          <RefreshCw size={28} />
-          <span>Copies</span>
-          <strong>{dashboard?.prompts?.copies ?? '-'}</strong>
-        </div>
-        <div className="adminCard statCard">
-          <span>Categories</span>
-          <strong>{dashboard?.categories?.count ?? '-'}</strong>
-        </div>
+        <div className="adminCard statCard"><BarChart3 size={28} /><span>Prompts</span><strong>{dashboard?.prompts?.count ?? prompts.length ?? '-'}</strong></div>
+        <div className="adminCard statCard"><Sparkles size={28} /><span>Views</span><strong>{dashboard?.prompts?.views ?? '-'}</strong></div>
+        <div className="adminCard statCard"><RefreshCw size={28} /><span>Copies</span><strong>{dashboard?.prompts?.copies ?? '-'}</strong></div>
+        <div className="adminCard statCard"><span>Categories</span><strong>{dashboard?.categories?.count ?? '-'}</strong></div>
       </section>
 
       <section className="adminCard dailyCard">
@@ -154,7 +150,7 @@ export default function AdminPanel() {
           <label>ناونیشانی کوردی<input value={form.title_ku} onChange={(e) => setForm({ ...form, title_ku: e.target.value })} required /></label>
           <label>English title<input value={form.title_en} onChange={(e) => setForm({ ...form, title_en: e.target.value })} /></label>
           <label>Arabic title<input value={form.title_ar} onChange={(e) => setForm({ ...form, title_ar: e.target.value })} /></label>
-          <label>Category<select value={form.category_slug} onChange={(e) => setForm({ ...form, category_slug: e.target.value })}><option value="kurdish-style">Kurdish Style</option><option value="islamic">Islamic</option><option value="couples">Couples</option><option value="cars">Cars</option></select></label>
+          <label>Category<select value={form.category_slug} onChange={(e) => setForm({ ...form, category_slug: e.target.value })}><option value="kurdish-style">Kurdish Style</option><option value="islamic">Islamic</option><option value="couples">Couples</option><option value="cars">Cars</option><option value="movies">Movies</option><option value="characters">Characters</option></select></label>
           <label className="wide">Description<textarea value={form.description_ku} onChange={(e) => setForm({ ...form, description_ku: e.target.value })} rows="2" /></label>
           <label className="wide">Prompt text<textarea value={form.prompt_text} onChange={(e) => setForm({ ...form, prompt_text: e.target.value })} rows="5" required /></label>
           <label>Tags comma separated<input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} /></label>
@@ -163,6 +159,18 @@ export default function AdminPanel() {
           <label className="checkLabel"><input checked={form.is_trending} onChange={(e) => setForm({ ...form, is_trending: e.target.checked })} type="checkbox" /> Trending</label>
           <button className="submitPrompt" disabled={!savedToken || loading}>{loading ? 'Working...' : 'Publish Prompt'}</button>
         </form>
+      </section>
+
+      <section className="adminCard">
+        <div className="adminCardTitle"><BarChart3 size={22} /><h2>پرۆمپتە بڵاوکراوەکان</h2></div>
+        <div className="adminPromptList">
+          {prompts.length === 0 ? <p>هێشتا هیچ پرۆمپتێک لە داتابەیسدا نییە.</p> : prompts.map((prompt) => (
+            <article key={prompt.id} className="adminPromptItem">
+              <div><strong>{prompt.title_ku || prompt.title_en}</strong><small>{prompt.category_name} • 👁 {prompt.views || 0} • 📋 {prompt.copies || 0}</small></div>
+              <span>{prompt.is_trending ? '🔥 Trending' : 'Prompt'}</span>
+            </article>
+          ))}
+        </div>
       </section>
     </main>
   );
