@@ -30,6 +30,11 @@
 .checkLabel { display: flex !important; align-items: center; flex-direction: row; gap: 10px !important; }
 .checkLabel input { width: auto; }
 .submitPrompt { margin-top: 8px; }
+.adminPromptList { display: grid; gap: 12px; margin-top: 16px; }
+.adminPromptItem { display: flex; align-items: center; justify-content: space-between; gap: 14px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.045); border-radius: 18px; padding: 14px; }
+.adminPromptItem div { display: grid; gap: 5px; }
+.adminPromptItem small { color: #a1a1aa; }
+.adminPromptItem span { color: #00f5a0; white-space: nowrap; }
 button:disabled { opacity: .5; cursor: not-allowed; }
-@media (max-width: 800px) { .adminHero, .dailyCard { flex-direction: column; align-items: stretch; } .adminGrid { grid-template-columns: repeat(2, 1fr); } .promptForm { grid-template-columns: 1fr; } }
+@media (max-width: 800px) { .adminHero, .dailyCard { flex-direction: column; align-items: stretch; } .adminGrid { grid-template-columns: repeat(2, 1fr); } .promptForm { grid-template-columns: 1fr; } .adminPromptItem { align-items: flex-start; flex-direction: column; } }
 @media (max-width: 520px) { .adminGrid { grid-template-columns: 1fr; } .adminTokenRow { grid-template-columns: 1fr; } }
