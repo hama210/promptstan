@@ -9,10 +9,118 @@ const JSON_HEADERS = {
 };
 
 const DAILY_PROMPTS = [
-  { slug: 'daily-kurdish-bride-cinematic', category: 'kurdish-style', title_ku: 'بووکی کوردی بە ستایلی سینەمایی', title_en: 'Cinematic Kurdish Bride', title_ar: 'عروس كردية سينمائية', description_ku: 'پرۆمپتی ڕۆژانە بۆ وێنەی بووکی کوردی.', prompt_text: 'Kurdish bride wearing traditional colorful Kurdish dress, elegant jewelry, mountain background, warm cinematic light, realistic photography, ultra detailed, professional portrait, 8K.', difficulty: 'easy', rating: 4.9, is_featured: 1, is_trending: 1, tags: ['kurdishbride', 'kurdish', 'portrait'] },
-  { slug: 'daily-ramadan-mosque-glow', category: 'islamic', title_ku: 'مزگەوتی ڕەمەزان بە ڕۆشنایی گەرم', title_en: 'Ramadan Mosque Glow', title_ar: 'مسجد رمضان بإضاءة دافئة', description_ku: 'پرۆمپتی ڕۆژانە بۆ دیمەنی ئیسلامی.', prompt_text: 'Beautiful mosque during Ramadan night, glowing lanterns, crescent moon, peaceful atmosphere, warm cinematic lighting, Islamic architecture, realistic wallpaper style, high quality.', difficulty: 'easy', rating: 4.9, is_featured: 0, is_trending: 1, tags: ['ramadan', 'islamic', 'mosque'] },
-  { slug: 'daily-two-photos-warm-hug', category: 'couples', title_ku: 'دوو وێنە پێکەوە بە Hug', title_en: 'Two Photos Warm Hug', title_ar: 'صورتان في عناق دافئ', description_ku: 'پرۆمپتی ڕۆژانە بۆ پێکەوەکردنی دوو کەس.', prompt_text: 'Combine two separate people from two photos into one realistic warm hug scene, natural body position, matching lighting and shadows, emotional cinematic photo edit, high quality.', difficulty: 'easy', rating: 4.8, is_featured: 1, is_trending: 1, tags: ['couple', 'hug', 'twophotos'] },
-  { slug: 'daily-luxury-car-night-ad', category: 'cars', title_ku: 'ئۆتۆمبێلی لاکژەری لە شەودا', title_en: 'Luxury Car Night Ad', title_ar: 'سيارة فاخرة ليلاً', description_ku: 'پرۆمپتی ڕۆژانە بۆ کار و ڕیکلام.', prompt_text: 'Luxury car photography at night, neon street reflections, cinematic rain, sharp details, premium advertising look, dramatic lighting, ultra realistic, high quality.', difficulty: 'medium', rating: 4.8, is_featured: 0, is_trending: 1, tags: ['luxurycar', 'cars', 'cinematic'] }
+  {
+    slug: 'daily-solo-cinematic-portrait',
+    category: 'person-edit',
+    title_ku: 'پۆرترێتی سینەمایی بۆ یەک کەس',
+    title_en: 'Solo Cinematic Portrait',
+    title_ar: 'بورتريه سينمائي لشخص واحد',
+    description_ku: 'پرۆمپتی ڕۆژانە بۆ دەستکاری یەک کەس بە ستایلی سینەمایی.',
+    prompt_text: 'Edit one person into a realistic cinematic portrait, warm golden-hour lighting, sharp face details, natural skin texture, soft background blur, professional photography style, high quality.',
+    difficulty: 'easy',
+    rating: 5.0,
+    is_featured: 1,
+    is_trending: 1,
+    tags: ['PersonEdit', 'Solo', 'Portrait', 'Cinematic']
+  },
+  {
+    slug: 'daily-two-photos-warm-hug',
+    category: 'person-edit',
+    title_ku: 'دوو وێنە پێکەوە بە Hug',
+    title_en: 'Two Photos Warm Hug',
+    title_ar: 'صورتان في عناق دافئ',
+    description_ku: 'پرۆمپتی ڕۆژانە بۆ پێکەوەکردنی دوو کەس.',
+    prompt_text: 'Combine two separate people from two photos into one realistic warm hug scene, natural body position, matching lighting and shadows, emotional cinematic photo edit, high quality.',
+    difficulty: 'easy',
+    rating: 5.0,
+    is_featured: 1,
+    is_trending: 1,
+    tags: ['TwoPhotos', 'Hug', 'Couple', 'PersonEdit']
+  },
+  {
+    slug: 'daily-kurdish-clothes-couple',
+    category: 'person-edit',
+    title_ku: 'دوو کەس بە جل و بەرگی کوردی',
+    title_en: 'Kurdish Clothes Couple',
+    title_ar: 'شخصان بملابس كردية',
+    description_ku: 'پرۆمپتی ڕۆژانە بۆ ستایلی کوردی.',
+    prompt_text: 'Combine two people into one realistic Kurdish style photo, traditional Kurdish clothes, natural pose, warm mountain light, matching shadows, cinematic photography, high quality.',
+    difficulty: 'easy',
+    rating: 5.0,
+    is_featured: 1,
+    is_trending: 1,
+    tags: ['Kurdish', 'Couple', 'TwoPhotos', 'PersonEdit']
+  },
+  {
+    slug: 'daily-clean-suit-portrait',
+    category: 'person-edit',
+    title_ku: 'یەک کەس بە سووتی پڕۆفیشناڵ',
+    title_en: 'Clean Suit Portrait',
+    title_ar: 'بورتريه ببدلة أنيقة',
+    description_ku: 'پرۆمپتی ڕۆژانە بۆ وێنەی سووت و کار.',
+    prompt_text: 'Edit one person into a professional clean suit portrait, modern office or dark premium background, confident natural pose, realistic fabric texture, sharp face details, LinkedIn-quality photo.',
+    difficulty: 'easy',
+    rating: 4.9,
+    is_featured: 0,
+    is_trending: 1,
+    tags: ['Suit', 'Business', 'Portrait', 'PersonEdit']
+  },
+  {
+    slug: 'daily-movie-star-person-edit',
+    category: 'person-edit',
+    title_ku: 'وێنەی ئەستێرەی فیلم بۆ یەک کەس',
+    title_en: 'Movie Star Person Edit',
+    title_ar: 'تعديل شخص بأسلوب نجم سينما',
+    description_ku: 'پرۆمپتی ڕۆژانە بۆ movie style.',
+    prompt_text: 'Transform one person into a cinematic movie star portrait, dramatic key light, film color grading, confident pose, realistic identity preservation, poster-quality photography, high detail.',
+    difficulty: 'medium',
+    rating: 4.9,
+    is_featured: 0,
+    is_trending: 1,
+    tags: ['MovieStyle', 'Portrait', 'Cinematic', 'PersonEdit']
+  },
+  {
+    slug: 'daily-two-people-rain-scene',
+    category: 'person-edit',
+    title_ku: 'دوو کەس لە باراندا',
+    title_en: 'Two People Rain Scene',
+    title_ar: 'شخصان تحت المطر',
+    description_ku: 'پرۆمپتی ڕۆژانە بۆ دیمەنی درامایی.',
+    prompt_text: 'Create a realistic emotional scene of two people standing together in light rain, cinematic reflections, matching wet hair and clothes, natural expressions, dramatic mood, high quality.',
+    difficulty: 'easy',
+    rating: 4.9,
+    is_featured: 1,
+    is_trending: 1,
+    tags: ['Rain', 'TwoPeople', 'Drama', 'PersonEdit']
+  },
+  {
+    slug: 'daily-family-group-photo',
+    category: 'person-edit',
+    title_ku: 'کۆمەڵە کەس بە شێوەی خێزان',
+    title_en: 'Family Group Photo',
+    title_ar: 'صورة جماعية عائلية',
+    description_ku: 'پرۆمپتی ڕۆژانە بۆ کۆکردنەوەی چەند کەس.',
+    prompt_text: 'Combine multiple people into one realistic family-style group photo, natural standing positions, matching camera angle, balanced lighting, realistic shadows, professional photo edit.',
+    difficulty: 'medium',
+    rating: 4.8,
+    is_featured: 0,
+    is_trending: 1,
+    tags: ['GroupPhoto', 'Family', 'MultiplePeople', 'PersonEdit']
+  },
+  {
+    slug: 'daily-night-street-person-edit',
+    category: 'person-edit',
+    title_ku: 'یەک کەس لە شەقامی شەو',
+    title_en: 'Night Street Person Edit',
+    title_ar: 'تعديل شخص في شارع ليلي',
+    description_ku: 'پرۆمپتی ڕۆژانە بۆ ستایلی شەوی سینەمایی.',
+    prompt_text: 'Edit one person standing on a cinematic night street, neon reflections, realistic wet pavement, dramatic lighting, natural pose, sharp face details, high quality.',
+    difficulty: 'easy',
+    rating: 4.8,
+    is_featured: 0,
+    is_trending: 1,
+    tags: ['Night', 'Street', 'Cinematic', 'PersonEdit']
+  }
 ];
 
 export default {
@@ -78,7 +186,7 @@ async function adminDashboard(request, env) {
 
 async function createPromptFromRequest(request, env) {
   const body = await request.json();
-  const category = await getOrCreateCategory(env, body.category_slug || 'kurdish-style');
+  const category = await getOrCreateCategory(env, body.category_slug || 'person-edit');
   const slug = body.slug || slugify(body.title_en || body.title_ku || `prompt-${Date.now()}`);
   const result = await env.DB.prepare('INSERT INTO prompts (slug, category_id, title_ku, title_en, title_ar, description_ku, description_en, description_ar, prompt_text, negative_prompt, preview_image_url, difficulty, rating, is_featured, is_trending, published_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)').bind(slug, category.id, body.title_ku, body.title_en || null, body.title_ar || null, body.description_ku || null, body.description_en || null, body.description_ar || null, body.prompt_text, body.negative_prompt || null, body.preview_image_url || null, body.difficulty || 'easy', body.rating || 4.8, body.is_featured ? 1 : 0, body.is_trending ? 1 : 0).run();
   const promptId = result.meta.last_row_id;
@@ -89,8 +197,17 @@ async function createPromptFromRequest(request, env) {
 async function getOrCreateCategory(env, slug) {
   const existing = await env.DB.prepare('SELECT * FROM categories WHERE slug = ?').bind(slug).first();
   if (existing) return existing;
-  const names = { 'kurdish-style': ['☀️', 'کوردی ستایل', 'Kurdish Style', 'ستايل كردي'], islamic: ['🕌', 'ئیسلامی', 'Islamic', 'إسلامي'], couples: ['👥', 'جووت و خێزان', 'Couples', 'الأزواج'], cars: ['🚗', 'ئۆتۆمبێل', 'Cars', 'السيارات'], movies: ['🎞️', 'فیلم و پۆستەر', 'Movies', 'الأفلام'], characters: ['🦸', 'کارەکتەر', 'Characters', 'الشخصيات'] };
-  const data = names[slug] || ['📂', slug, slug, slug];
+  const names = {
+    'person-edit': ['👤', 'دەستکاری کەس', 'Person Edit', 'تعديل الأشخاص'],
+    'kurdish-style': ['☀️', 'ستایلی کوردی', 'Kurdish Style', 'ستايل كردي'],
+    outfit: ['👔', 'جل و بەرگ', 'Outfit Style', 'تغيير الملابس'],
+    movies: ['🎞️', 'ستایلی فیلم', 'Movie Style', 'ستايل الأفلام'],
+    couples: ['👥', 'دوو کەس', 'Two People', 'شخصان'],
+    islamic: ['🕌', 'ئیسلامی', 'Islamic', 'إسلامي'],
+    cars: ['🚗', 'ئۆتۆمبێل', 'Cars', 'السيارات'],
+    characters: ['🦸', 'کارەکتەر', 'Characters', 'الشخصيات']
+  };
+  const data = names[slug] || ['👤', 'دەستکاری کەس', 'Person Edit', 'تعديل الأشخاص'];
   await env.DB.prepare('INSERT OR IGNORE INTO categories (slug, icon, name_ku, name_en, name_ar) VALUES (?, ?, ?, ?, ?)').bind(slug, ...data).run();
   return env.DB.prepare('SELECT * FROM categories WHERE slug = ?').bind(slug).first();
 }
