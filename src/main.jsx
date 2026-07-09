@@ -4,6 +4,7 @@ import App from "./App.jsx";
 import AdminPanel from "./admin/AdminPanelV3.jsx";
 import "./styles.css";
 import "./category-fix.css";
+import "./no-categories.css";
 import "./admin/admin.css";
 
 const isAdmin = window.location.pathname.startsWith("/admin");
