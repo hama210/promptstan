@@ -92,34 +92,6 @@ const DAILY_PROMPTS = [
     is_featured: 1,
     is_trending: 1,
     tags: ['Rain', 'TwoPeople', 'Drama', 'PersonEdit']
-  },
-  {
-    slug: 'daily-family-group-photo',
-    category: 'person-edit',
-    title_ku: 'کۆمەڵە کەس بە شێوەی خێزان',
-    title_en: 'Family Group Photo',
-    title_ar: 'صورة جماعية عائلية',
-    description_ku: 'پرۆمپتی ڕۆژانە بۆ کۆکردنەوەی چەند کەس.',
-    prompt_text: 'Combine multiple people into one realistic family-style group photo, natural standing positions, matching camera angle, balanced lighting, realistic shadows, professional photo edit.',
-    difficulty: 'medium',
-    rating: 4.8,
-    is_featured: 0,
-    is_trending: 1,
-    tags: ['GroupPhoto', 'Family', 'MultiplePeople', 'PersonEdit']
-  },
-  {
-    slug: 'daily-night-street-person-edit',
-    category: 'person-edit',
-    title_ku: 'یەک کەس لە شەقامی شەو',
-    title_en: 'Night Street Person Edit',
-    title_ar: 'تعديل شخص في شارع ليلي',
-    description_ku: 'پرۆمپتی ڕۆژانە بۆ ستایلی شەوی سینەمایی.',
-    prompt_text: 'Edit one person standing on a cinematic night street, neon reflections, realistic wet pavement, dramatic lighting, natural pose, sharp face details, high quality.',
-    difficulty: 'easy',
-    rating: 4.8,
-    is_featured: 0,
-    is_trending: 1,
-    tags: ['Night', 'Street', 'Cinematic', 'PersonEdit']
   }
 ];
 
@@ -149,8 +121,7 @@ export default {
     if (url.pathname.startsWith('/api/admin/prompts/') && request.method === 'PUT') return adminOnly(request, env, (req, e) => adminUpdatePrompt(req, e, url.pathname.split('/').pop()));
     if (url.pathname.startsWith('/api/admin/prompts/') && request.method === 'DELETE') return adminOnly(request, env, (req, e) => adminDeletePrompt(e, url.pathname.split('/').pop()));
 
-    if (env.ASSETS) return env.ASSETS.fetch(request);
-    return json({ error: 'Not found' }, 404);
+    return serveAppAsset(request, env);
   },
 
   async scheduled(event, env, ctx) {
@@ -158,6 +129,19 @@ export default {
     ctx.waitUntil(publishDailyPrompt(env));
   }
 };
+
+async function serveAppAsset(request, env) {
+  if (!env.ASSETS) return json({ error: 'Not found' }, 404);
+
+  const assetResponse = await env.ASSETS.fetch(request);
+  if (assetResponse.status !== 404) return assetResponse;
+  if (!['GET', 'HEAD'].includes(request.method)) return assetResponse;
+
+  const url = new URL(request.url);
+  url.pathname = '/index.html';
+  url.search = '';
+  return env.ASSETS.fetch(new Request(url.toString(), { method: request.method, headers: request.headers }));
+}
 
 async function publishDailyPrompt(env) {
   const today = new Date().toISOString().slice(0, 10);
@@ -215,6 +199,7 @@ async function getOrCreateCategory(env, slug) {
 async function attachTags(env, promptId, tags) {
   for (const rawTag of tags) {
     const slug = slugify(rawTag);
+    if (!slug) continue;
     const name = String(rawTag).startsWith('#') ? rawTag : `#${rawTag}`;
     await env.DB.prepare('INSERT OR IGNORE INTO tags (slug, name, is_trending) VALUES (?, ?, 1)').bind(slug, name).run();
     const tag = await env.DB.prepare('SELECT id FROM tags WHERE slug = ?').bind(slug).first();
@@ -222,16 +207,72 @@ async function attachTags(env, promptId, tags) {
   }
 }
 
-function requireAdmin(request, env) { const token = request.headers.get('authorization')?.replace('Bearer ', '') || ''; return Boolean(env.ADMIN_TOKEN && token === env.ADMIN_TOKEN); }
-async function adminOnly(request, env, handler) { if (!requireAdmin(request, env)) return json({ error: 'Unauthorized' }, 401); return handler(request, env); }
-async function listCategories(env) { const result = await env.DB.prepare('SELECT * FROM categories ORDER BY name_ku ASC').all(); return json(result.results || []); }
-async function getCategory(env, slug) { const category = await env.DB.prepare('SELECT * FROM categories WHERE slug = ?').bind(slug).first(); if (!category) return json({ error: 'Category not found' }, 404); const prompts = await env.DB.prepare('SELECT prompts.*, categories.slug AS category_slug, categories.name_ku AS category_name FROM prompts JOIN categories ON prompts.category_id = categories.id WHERE categories.slug = ? ORDER BY prompts.published_at DESC LIMIT 100').bind(slug).all(); return json({ category, prompts: prompts.results || [] }); }
-async function listPrompts(env) { const result = await env.DB.prepare('SELECT prompts.*, categories.slug AS category_slug, categories.name_ku AS category_name FROM prompts JOIN categories ON prompts.category_id = categories.id ORDER BY prompts.published_at DESC LIMIT 100').all(); return json(result.results || []); }
-async function getPrompt(env, slug) { const prompt = await env.DB.prepare('SELECT prompts.*, categories.slug AS category_slug, categories.name_ku AS category_name FROM prompts JOIN categories ON prompts.category_id = categories.id WHERE prompts.slug = ?').bind(slug).first(); if (!prompt) return json({ error: 'Prompt not found' }, 404); const tags = await env.DB.prepare('SELECT tags.* FROM tags JOIN prompt_tags ON prompt_tags.tag_id = tags.id WHERE prompt_tags.prompt_id = ? ORDER BY tags.name ASC').bind(prompt.id).all(); return json({ ...prompt, tags: tags.results || [] }); }
-async function listTags(env) { const result = await env.DB.prepare('SELECT * FROM tags ORDER BY name ASC').all(); return json(result.results || []); }
-async function trendingTags(env) { const result = await env.DB.prepare('SELECT * FROM tags WHERE is_trending = 1 ORDER BY name ASC LIMIT 30').all(); return json(result.results || []); }
-async function trendingPrompts(env) { const result = await env.DB.prepare('SELECT prompts.*, categories.slug AS category_slug, categories.name_ku AS category_name FROM prompts JOIN categories ON prompts.category_id = categories.id WHERE prompts.is_trending = 1 OR prompts.is_featured = 1 ORDER BY prompts.copies DESC, prompts.views DESC LIMIT 30').all(); return json(result.results || []); }
-async function searchPrompts(env, query) { const term = `%${query.trim().replace('#', '')}%`; if (!query.trim()) return listPrompts(env); const result = await env.DB.prepare('SELECT DISTINCT prompts.*, categories.slug AS category_slug, categories.name_ku AS category_name FROM prompts JOIN categories ON prompts.category_id = categories.id LEFT JOIN prompt_tags ON prompt_tags.prompt_id = prompts.id LEFT JOIN tags ON tags.id = prompt_tags.tag_id WHERE prompts.title_ku LIKE ? OR prompts.title_en LIKE ? OR prompts.title_ar LIKE ? OR prompts.prompt_text LIKE ? OR categories.name_ku LIKE ? OR tags.name LIKE ? OR tags.slug LIKE ? ORDER BY prompts.copies DESC, prompts.views DESC LIMIT 100').bind(term, term, term, term, term, term, term).all(); return json(result.results || []); }
-async function increaseCounter(env, id, field) { if (!['views', 'copies'].includes(field)) return json({ error: 'Invalid counter' }, 400); await env.DB.prepare(`UPDATE prompts SET ${field} = ${field} + 1 WHERE id = ?`).bind(id).run(); return json({ ok: true }); }
-function slugify(value) { return String(value || '').toLowerCase().replace(/#/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `prompt-${Date.now()}`; }
-function json(data, status = 200) { return new Response(JSON.stringify(data), { status, headers: JSON_HEADERS }); }
+function requireAdmin(request, env) {
+  const token = request.headers.get('authorization')?.replace('Bearer ', '') || '';
+  return Boolean(env.ADMIN_TOKEN && token === env.ADMIN_TOKEN);
+}
+
+async function adminOnly(request, env, handler) {
+  if (!requireAdmin(request, env)) return json({ error: 'Unauthorized' }, 401);
+  return handler(request, env);
+}
+
+async function listCategories(env) {
+  const result = await env.DB.prepare('SELECT * FROM categories ORDER BY name_ku ASC').all();
+  return json(result.results || []);
+}
+
+async function getCategory(env, slug) {
+  const category = await env.DB.prepare('SELECT * FROM categories WHERE slug = ?').bind(slug).first();
+  if (!category) return json({ error: 'Category not found' }, 404);
+  const prompts = await env.DB.prepare('SELECT prompts.*, categories.slug AS category_slug, categories.name_ku AS category_name FROM prompts JOIN categories ON prompts.category_id = categories.id WHERE categories.slug = ? ORDER BY prompts.published_at DESC LIMIT 100').bind(slug).all();
+  return json({ category, prompts: prompts.results || [] });
+}
+
+async function listPrompts(env) {
+  const result = await env.DB.prepare('SELECT prompts.*, categories.slug AS category_slug, categories.name_ku AS category_name FROM prompts JOIN categories ON prompts.category_id = categories.id ORDER BY prompts.published_at DESC LIMIT 100').all();
+  return json(result.results || []);
+}
+
+async function getPrompt(env, slug) {
+  const prompt = await env.DB.prepare('SELECT prompts.*, categories.slug AS category_slug, categories.name_ku AS category_name FROM prompts JOIN categories ON prompts.category_id = categories.id WHERE prompts.slug = ?').bind(slug).first();
+  if (!prompt) return json({ error: 'Prompt not found' }, 404);
+  const tags = await env.DB.prepare('SELECT tags.* FROM tags JOIN prompt_tags ON prompt_tags.id = tags.id WHERE prompt_tags.prompt_id = ? ORDER BY tags.name ASC').bind(prompt.id).all();
+  return json({ ...prompt, tags: tags.results || [] });
+}
+
+async function listTags(env) {
+  const result = await env.DB.prepare('SELECT * FROM tags ORDER BY name ASC').all();
+  return json(result.results || []);
+}
+
+async function trendingTags(env) {
+  const result = await env.DB.prepare('SELECT * FROM tags WHERE is_trending = 1 ORDER BY name ASC LIMIT 30').all();
+  return json(result.results || []);
+}
+
+async function trendingPrompts(env) {
+  const result = await env.DB.prepare('SELECT prompts.*, categories.slug AS category_slug, categories.name_ku AS category_name FROM prompts JOIN categories ON prompts.category_id = categories.id WHERE prompts.is_trending = 1 OR prompts.is_featured = 1 ORDER BY prompts.copies DESC, prompts.views DESC LIMIT 30').all();
+  return json(result.results || []);
+}
+
+async function searchPrompts(env, query) {
+  const term = `%${query.trim().replace('#', '')}%`;
+  if (!query.trim()) return listPrompts(env);
+  const result = await env.DB.prepare('SELECT DISTINCT prompts.*, categories.slug AS category_slug, categories.name_ku AS category_name FROM prompts JOIN categories ON prompts.category_id = categories.id LEFT JOIN prompt_tags ON prompt_tags.prompt_id = prompts.id LEFT JOIN tags ON tags.id = prompt_tags.tag_id WHERE prompts.title_ku LIKE ? OR prompts.title_en LIKE ? OR prompts.title_ar LIKE ? OR prompts.prompt_text LIKE ? OR categories.name_ku LIKE ? OR tags.name LIKE ? OR tags.slug LIKE ? ORDER BY prompts.copies DESC, prompts.views DESC LIMIT 100').bind(term, term, term, term, term, term, term).all();
+  return json(result.results || []);
+}
+
+async function increaseCounter(env, id, field) {
+  if (!['views', 'copies'].includes(field)) return json({ error: 'Invalid counter' }, 400);
+  await env.DB.prepare(`UPDATE prompts SET ${field} = ${field} + 1 WHERE id = ?`).bind(id).run();
+  return json({ ok: true });
+}
+
+function slugify(value) {
+  return String(value || '').toLowerCase().replace(/#/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `prompt-${Date.now()}`;
+}
+
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), { status, headers: JSON_HEADERS });
+}
