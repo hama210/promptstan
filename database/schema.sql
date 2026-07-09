@@ -75,6 +75,3 @@ CREATE TABLE IF NOT EXISTS prompt_collections (
   FOREIGN KEY (prompt_id) REFERENCES prompts(id) ON DELETE CASCADE,
   FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE
 );
-
-ALTER TABLE prompts ADD COLUMN before_image_url TEXT;
-ALTER TABLE prompts ADD COLUMN after_image_url TEXT;
