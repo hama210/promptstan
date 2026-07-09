@@ -51,7 +51,12 @@ export async function trackPromptAction(id, action) {
 }
 
 function normalizeCategory(category) {
-  return { name: category.name_ku || category.name_en || category.slug, icon: category.icon || '📂', slug: category.slug, count: category.count || 0 };
+  return {
+    name: category.name_ku || category.name_en || category.slug,
+    icon: category.icon || '👤',
+    slug: category.slug,
+    count: category.count || 0
+  };
 }
 
 function normalizePrompt(prompt, index = 0) {
@@ -64,11 +69,19 @@ function normalizePrompt(prompt, index = 0) {
     views: formatNumber(prompt.views || 0),
     copies: formatNumber(prompt.copies || 0),
     rating: String(prompt.rating || '4.8'),
-    imageTitle: prompt.title_en || prompt.title_ku || 'Prompt',
+    imageTitle: prompt.title_en || prompt.title_ku || 'Person Edit',
     text: prompt.prompt_text || prompt.text || '',
+    previewImage: normalizeImageUrl(prompt.preview_image_url || prompt.previewImage || prompt.image || ''),
     gradient: prompt.gradient || gradients[index % gradients.length],
     tags: Array.isArray(prompt.tags) ? prompt.tags.map((tag) => tag.name || tag) : []
   };
+}
+
+function normalizeImageUrl(value) {
+  const image = String(value || '').trim();
+  if (!image) return '';
+  if (/^https?:\/\//i.test(image)) return image;
+  return `${API_BASE}${image.startsWith('/') ? '' : '/'}${image}`;
 }
 
 function formatNumber(value) {
