@@ -75,19 +75,16 @@ function normalizePrompt(prompt, index = 0) {
     rating: String(prompt.rating || '4.8'),
     imageTitle: englishTitle || 'Person Edit',
     text: prompt.prompt_text || prompt.text || '',
-    previewImage: normalizeImageUrl(prompt.preview_image_url || prompt.previewImage || prompt.image || autoPreviewPath(slug, englishTitle)),
+    previewImage: normalizeImageUrl(prompt.preview_image_url || prompt.previewImage || prompt.image || ''),
     gradient: prompt.gradient || gradients[index % gradients.length],
     tags: Array.isArray(prompt.tags) ? prompt.tags.map((tag) => tag.name || tag) : []
   };
 }
 
-function autoPreviewPath(slug, title) {
-  return `/api/preview/${encodeURIComponent(String(slug || 'person-edit').replace(/\.svg$/i, ''))}.svg?title=${encodeURIComponent(String(title || 'Person Edit'))}`;
-}
-
 function normalizeImageUrl(value) {
   const image = String(value || '').trim();
   if (!image) return '';
+  if (image.includes('/api/preview/')) return '';
   if (/^https?:\/\//i.test(image)) return image;
   return `${API_BASE}${image.startsWith('/') ? '' : '/'}${image}`;
 }
