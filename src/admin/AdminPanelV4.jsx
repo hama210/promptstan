@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BarChart3, CalendarClock, Edit3, ImagePlus, KeyRound, Plus, RefreshCw, Search, ShieldCheck, Sparkles, Trash2, X } from 'lucide-react';
 
-const API_BASE = 'https://promptstan-api.hhhh46529.workers.dev';
+const API_BASE = window.location.hostname.includes('workers.dev') ? window.location.origin : 'https://promptstan-api.hhhh46529.workers.dev';
 const emptyPrompt = { title_ku: '', title_en: '', title_ar: '', description_ku: '', prompt_text: '', preview_image_url: '', category_slug: 'person-edit', tags: 'person,edit', difficulty: 'easy', rating: 4.8, is_featured: false, is_trending: true };
 const pageSize = 10;
 
@@ -15,11 +15,12 @@ export default function AdminPanelV4() {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [message, setMessage] = useState('');
+  const [apiStatus, setApiStatus] = useState('Checking API connection...');
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const authHeaders = savedToken ? { Authorization: `Bearer ${savedToken}` } : {};
 
-  useEffect(() => { loadPrompts(); if (savedToken) loadDashboard(); }, [savedToken]);
+  useEffect(() => { checkApiConnection(); loadPrompts(); if (savedToken) loadDashboard(); }, [savedToken]);
   useEffect(() => setPage(1), [query]);
 
   const filteredPrompts = useMemo(() => {
@@ -32,17 +33,36 @@ export default function AdminPanelV4() {
 
   function saveToken() { localStorage.setItem('promptstan-admin-token', token); setSavedToken(token); setMessage('Admin token saved.'); }
 
+  async function checkApiConnection() {
+    try {
+      const res = await fetch(`${API_BASE}/api/health`, { cache: 'no-store' });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || 'API health check failed');
+      setApiStatus(`✅ Connected to ${data.service || 'Promptstan API'}`);
+    } catch (error) {
+      setApiStatus(`❌ API not connected: ${error.message}`);
+    }
+  }
+
   async function loadPrompts() {
-    try { const res = await fetch(`${API_BASE}/api/prompts`); const data = await res.json(); setPrompts(Array.isArray(data) ? data : []); } catch {}
+    try {
+      const res = await fetch(`${API_BASE}/api/prompts`, { cache: 'no-store' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not load prompts');
+      setPrompts(Array.isArray(data) ? data : []);
+    } catch (error) {
+      setMessage(`Public API connection failed: ${error.message}`);
+      setPrompts([]);
+    }
   }
 
   async function loadDashboard() {
     setLoading(true); setMessage('');
     try {
-      const res = await fetch(`${API_BASE}/api/admin/dashboard`, { headers: authHeaders });
+      const res = await fetch(`${API_BASE}/api/admin/dashboard`, { headers: authHeaders, cache: 'no-store' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Dashboard failed');
-      setDashboard(data); await loadPrompts();
+      setDashboard(data); await loadPrompts(); await checkApiConnection();
     } catch (error) { setMessage(error.message); } finally { setLoading(false); }
   }
 
@@ -70,7 +90,7 @@ export default function AdminPanelV4() {
       if (!res.ok) throw new Error(data.error || 'Upload failed');
       const fullUrl = `${API_BASE}${data.url}`;
       setForm((current) => ({ ...current, preview_image_url: fullUrl }));
-      setMessage('Image uploaded.');
+      setMessage('Image uploaded. Now press Publish Prompt to save it.');
     } catch (error) { setMessage(error.message); } finally { setUploading(false); event.target.value = ''; }
   }
 
@@ -89,7 +109,7 @@ export default function AdminPanelV4() {
       const res = await fetch(editingId ? `${API_BASE}/api/admin/prompts/${editingId}` : `${API_BASE}/api/admin/prompts`, { method: editingId ? 'PUT' : 'POST', headers: { ...authHeaders, 'content-type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Save prompt failed');
-      setMessage(editingId ? 'Prompt updated.' : `Prompt created: ${data.slug}`); resetForm(); await loadDashboard();
+      setMessage(editingId ? 'Prompt updated. Refresh the public site to see it.' : `Prompt created: ${data.slug}. Refresh the public site to see it.`); resetForm(); await loadDashboard();
     } catch (error) { setMessage(error.message); } finally { setLoading(false); }
   }
 
@@ -106,7 +126,7 @@ export default function AdminPanelV4() {
 
   return <main className="adminShell" dir="rtl">
     <header className="adminHero"><div><span className="adminBadge"><ShieldCheck size={18} /> Promptstan Admin</span><h1>بەڕێوەبردنی پڕۆمپتستان</h1><p>پرۆمپت زیاد بکە، وێنە زیاد بکە، دەستکاری بکە، و ئاماری ماڵپەڕ ببینە.</p></div><a className="adminHome" href="/">گەڕانەوە بۆ ماڵەوە</a></header>
-    <section className="adminCard tokenCard"><div className="adminCardTitle"><KeyRound size={22} /><h2>Admin Token</h2></div><p>ADMIN_TOKEN ـەکەت لێرە دابنێ بۆ بەڕێوەبردن.</p><div className="adminTokenRow"><input value={token} onChange={(e) => setToken(e.target.value)} placeholder="ADMIN_TOKEN" type="password" /><button onClick={saveToken}>Save</button></div></section>
+    <section className="adminCard tokenCard"><div className="adminCardTitle"><KeyRound size={22} /><h2>Admin Token</h2></div><p>ADMIN_TOKEN ـەکەت لێرە دابنێ بۆ بەڕێوەبردن.</p><p><strong>API:</strong> {API_BASE}</p><p>{apiStatus}</p><div className="adminTokenRow"><input value={token} onChange={(e) => setToken(e.target.value)} placeholder="ADMIN_TOKEN" type="password" /><button onClick={saveToken}>Save</button><button onClick={() => { checkApiConnection(); loadPrompts(); }} type="button">Check API</button></div></section>
     {message && <div className="adminMessage">{message}</div>}
     <section className="adminGrid"><div className="adminCard statCard"><BarChart3 size={28} /><span>Prompts</span><strong>{dashboard?.prompts?.count ?? prompts.length ?? '-'}</strong></div><div className="adminCard statCard"><Sparkles size={28} /><span>Views</span><strong>{dashboard?.prompts?.views ?? '-'}</strong></div><div className="adminCard statCard"><RefreshCw size={28} /><span>Copies</span><strong>{dashboard?.prompts?.copies ?? '-'}</strong></div><div className="adminCard statCard"><span>Categories</span><strong>{dashboard?.categories?.count ?? '-'}</strong></div></section>
     <section className="adminCard dailyCard"><div><div className="adminCardTitle"><CalendarClock size={22} /><h2>Daily Prompt Bot</h2></div><p>بۆت ڕۆژانە پرۆمپت بڵاو دەکات. دەتوانیت ئێستا بە دەستی هەمان کار بکەیت.</p></div><button onClick={publishDailyNow} disabled={!savedToken || loading}>Publish today now</button></section>
