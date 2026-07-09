@@ -1,5 +1,6 @@
 import { adminListPrompts, adminUpdatePrompt, adminDeletePrompt } from './admin-extra.js';
 import { uploadPromptImage, servePromptImage } from './r2-images.js';
+import { autoPreviewPath, serveAutoPreview } from './preview.js';
 
 const JSON_HEADERS = {
   'content-type': 'application/json; charset=utf-8',
@@ -52,6 +53,20 @@ const DAILY_PROMPTS = [
     tags: ['Kurdish', 'Couple', 'TwoPhotos', 'PersonEdit']
   },
   {
+    slug: 'daily-clean-suit-portrait',
+    category: 'person-edit',
+    title_ku: 'یەک کەس بە سووتی پڕۆفیشناڵ',
+    title_en: 'Clean Suit Portrait',
+    title_ar: 'بورتريه ببدلة أنيقة',
+    description_ku: 'پرۆمپتی ڕۆژانە بۆ وێنەی سووت و کار.',
+    prompt_text: 'Edit one person into a professional clean suit portrait, modern office or dark premium background, confident natural pose, realistic fabric texture, sharp face details, LinkedIn-quality photo.',
+    difficulty: 'easy',
+    rating: 4.9,
+    is_featured: 0,
+    is_trending: 1,
+    tags: ['Suit', 'Business', 'Portrait', 'PersonEdit']
+  },
+  {
     slug: 'daily-movie-star-person-edit',
     category: 'person-edit',
     title_ku: 'وێنەی ئەستێرەی فیلم بۆ یەک کەس',
@@ -64,6 +79,20 @@ const DAILY_PROMPTS = [
     is_featured: 0,
     is_trending: 1,
     tags: ['MovieStyle', 'Portrait', 'Cinematic', 'PersonEdit']
+  },
+  {
+    slug: 'daily-two-people-rain-scene',
+    category: 'person-edit',
+    title_ku: 'دوو کەس لە باراندا',
+    title_en: 'Two People Rain Scene',
+    title_ar: 'شخصان تحت المطر',
+    description_ku: 'پرۆمپتی ڕۆژانە بۆ دیمەنی درامایی.',
+    prompt_text: 'Create a realistic emotional scene of two people standing together in light rain, cinematic reflections, matching wet hair and clothes, natural expressions, dramatic mood, high quality.',
+    difficulty: 'easy',
+    rating: 4.9,
+    is_featured: 1,
+    is_trending: 1,
+    tags: ['Rain', 'TwoPeople', 'Drama', 'PersonEdit']
   }
 ];
 
@@ -73,6 +102,7 @@ export default {
 
     if (request.method === 'OPTIONS') return new Response(null, { headers: JSON_HEADERS });
     if (url.pathname.startsWith('/uploads/')) return servePromptImage(request, env);
+    if (url.pathname.startsWith('/api/preview/')) return serveAutoPreview(request);
 
     if (url.pathname === '/api/health') return json({ ok: true, service: 'promptstan-api' });
     if (url.pathname === '/api/categories') return listCategories(env);
@@ -124,11 +154,12 @@ async function publishDailyPrompt(env) {
   const template = DAILY_PROMPTS[dayNumber % DAILY_PROMPTS.length];
   const slug = `daily-${today}-${template.slug}`;
   const category = await getOrCreateCategory(env, template.category);
+  const previewImageUrl = autoPreviewPath(slug, template.title_en || template.title_ku);
 
-  const result = await env.DB.prepare('INSERT INTO prompts (slug, category_id, title_ku, title_en, title_ar, description_ku, prompt_text, difficulty, rating, is_featured, is_trending, published_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)').bind(slug, category.id, template.title_ku, template.title_en, template.title_ar, template.description_ku, template.prompt_text, template.difficulty, template.rating, template.is_featured, template.is_trending).run();
+  const result = await env.DB.prepare('INSERT INTO prompts (slug, category_id, title_ku, title_en, title_ar, description_ku, prompt_text, preview_image_url, difficulty, rating, is_featured, is_trending, published_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)').bind(slug, category.id, template.title_ku, template.title_en, template.title_ar, template.description_ku, template.prompt_text, previewImageUrl, template.difficulty, template.rating, template.is_featured, template.is_trending).run();
   const promptId = result.meta.last_row_id;
   await attachTags(env, promptId, template.tags);
-  return { ok: true, prompt_id: promptId, slug };
+  return { ok: true, prompt_id: promptId, slug, preview_image_url: previewImageUrl };
 }
 
 async function runDailyPostNow(request, env) {
@@ -148,11 +179,12 @@ async function createPromptFromRequest(request, env) {
   const body = await request.json();
   const category = await getOrCreateCategory(env, body.category_slug || 'person-edit');
   const slug = body.slug || slugify(body.title_en || body.title_ku || `prompt-${Date.now()}`);
+  const previewImageUrl = body.preview_image_url || autoPreviewPath(slug, body.title_en || body.title_ku || 'Person Edit');
 
-  const result = await env.DB.prepare('INSERT INTO prompts (slug, category_id, title_ku, title_en, title_ar, description_ku, description_en, description_ar, prompt_text, negative_prompt, preview_image_url, difficulty, rating, is_featured, is_trending, published_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)').bind(slug, category.id, body.title_ku, body.title_en || null, body.title_ar || null, body.description_ku || null, body.description_en || null, body.description_ar || null, body.prompt_text, body.negative_prompt || null, body.preview_image_url || null, body.difficulty || 'easy', body.rating || 4.8, body.is_featured ? 1 : 0, body.is_trending ? 1 : 0).run();
+  const result = await env.DB.prepare('INSERT INTO prompts (slug, category_id, title_ku, title_en, title_ar, description_ku, description_en, description_ar, prompt_text, negative_prompt, preview_image_url, difficulty, rating, is_featured, is_trending, published_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)').bind(slug, category.id, body.title_ku, body.title_en || null, body.title_ar || null, body.description_ku || null, body.description_en || null, body.description_ar || null, body.prompt_text, body.negative_prompt || null, previewImageUrl, body.difficulty || 'easy', body.rating || 4.8, body.is_featured ? 1 : 0, body.is_trending ? 1 : 0).run();
   const promptId = result.meta.last_row_id;
   await attachTags(env, promptId, body.tags || []);
-  return json({ ok: true, id: promptId, slug }, 201);
+  return json({ ok: true, id: promptId, slug, preview_image_url: previewImageUrl }, 201);
 }
 
 async function getOrCreateCategory(env, slug) {
