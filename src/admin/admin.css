@@ -31,10 +31,14 @@
 .checkLabel input { width: auto; }
 .submitPrompt { margin-top: 8px; }
 .cancelEdit { margin-right: auto; background: rgba(255,255,255,.12); color: white; display: inline-flex; gap: 6px; align-items: center; }
+.imageUploadBox { border: 1px dashed rgba(0,245,160,.35); border-radius: 18px; padding: 14px; background: rgba(0,245,160,.04); }
+.imageUploadBox span { display: inline-flex; align-items: center; gap: 8px; color: #00f5a0; font-weight: 800; }
+.imageUploadBox img { width: min(260px, 100%); max-height: 180px; object-fit: cover; border-radius: 18px; border: 1px solid rgba(255,255,255,.12); }
+.adminListThumb { width: 64px; height: 64px; object-fit: cover; border-radius: 14px; border: 1px solid rgba(255,255,255,.13); }
 .adminSearch { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; margin-top: 16px; }
 .adminSearch span { color: #a1a1aa; white-space: nowrap; }
 .adminPromptList { display: grid; gap: 12px; margin-top: 16px; }
-.adminPromptItem { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 14px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.045); border-radius: 18px; padding: 14px; }
+.adminPromptItem { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 14px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.045); border-radius: 18px; padding: 14px; }
 .adminPromptItem div { display: grid; gap: 5px; }
 .adminPromptItem small { color: #a1a1aa; }
 .adminPromptItem span { color: #00f5a0; white-space: nowrap; }
@@ -44,6 +48,6 @@
 .pagination { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 18px; }
 .pagination button:disabled { opacity: .35; }
 button:disabled { opacity: .5; cursor: not-allowed; }
-@media (max-width: 900px) { .adminPromptItem { grid-template-columns: 1fr; align-items: flex-start; } .adminPromptActions { width: 100%; } .adminPromptActions button { flex: 1; justify-content: center; } }
+@media (max-width: 900px) { .adminPromptItem { grid-template-columns: auto 1fr; align-items: flex-start; } .adminPromptActions { grid-column: 1 / -1; width: 100%; } .adminPromptActions button { flex: 1; justify-content: center; } }
 @media (max-width: 800px) { .adminHero, .dailyCard { flex-direction: column; align-items: stretch; } .adminGrid { grid-template-columns: repeat(2, 1fr); } .promptForm { grid-template-columns: 1fr; } }
 @media (max-width: 520px) { .adminGrid { grid-template-columns: 1fr; } .adminTokenRow, .adminSearch { grid-template-columns: 1fr; } }
