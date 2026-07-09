@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS prompts (
   prompt_text TEXT NOT NULL,
   negative_prompt TEXT,
   preview_image_url TEXT,
+  before_image_url TEXT,
+  after_image_url TEXT,
   difficulty TEXT DEFAULT 'easy',
   rating REAL DEFAULT 0,
   views INTEGER DEFAULT 0,
@@ -73,3 +75,6 @@ CREATE TABLE IF NOT EXISTS prompt_collections (
   FOREIGN KEY (prompt_id) REFERENCES prompts(id) ON DELETE CASCADE,
   FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE
 );
+
+ALTER TABLE prompts ADD COLUMN before_image_url TEXT;
+ALTER TABLE prompts ADD COLUMN after_image_url TEXT;
