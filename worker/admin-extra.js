@@ -1,3 +1,5 @@
+import { autoPreviewPath } from './preview.js';
+
 export async function adminListPrompts(env) {
   const result = await env.DB.prepare(
     'SELECT prompts.*, categories.slug AS category_slug, categories.name_ku AS category_name FROM prompts JOIN categories ON prompts.category_id = categories.id ORDER BY prompts.id DESC LIMIT 200'
@@ -8,6 +10,9 @@ export async function adminListPrompts(env) {
 export async function adminUpdatePrompt(request, env, id) {
   const body = await request.json();
   const category = await getOrCreateCategory(env, body.category_slug || 'person-edit');
+  const current = await env.DB.prepare('SELECT slug FROM prompts WHERE id = ?').bind(id).first();
+  const slug = current?.slug || slugify(body.title_en || body.title_ku || `prompt-${id}`);
+  const previewImageUrl = body.preview_image_url || autoPreviewPath(slug, body.title_en || body.title_ku || 'Person Edit');
 
   await env.DB.prepare(
     'UPDATE prompts SET category_id = ?, title_ku = ?, title_en = ?, title_ar = ?, description_ku = ?, description_en = ?, description_ar = ?, prompt_text = ?, negative_prompt = ?, preview_image_url = ?, difficulty = ?, rating = ?, is_featured = ?, is_trending = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
@@ -21,7 +26,7 @@ export async function adminUpdatePrompt(request, env, id) {
     body.description_ar || null,
     body.prompt_text,
     body.negative_prompt || null,
-    body.preview_image_url || null,
+    previewImageUrl,
     body.difficulty || 'easy',
     body.rating || 4.8,
     body.is_featured ? 1 : 0,
@@ -31,7 +36,7 @@ export async function adminUpdatePrompt(request, env, id) {
 
   await env.DB.prepare('DELETE FROM prompt_tags WHERE prompt_id = ?').bind(id).run();
   await attachTags(env, id, body.tags || []);
-  return json({ ok: true, id });
+  return json({ ok: true, id, preview_image_url: previewImageUrl });
 }
 
 export async function adminDeletePrompt(env, id) {
