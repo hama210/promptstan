@@ -1,5 +1,6 @@
 import { adminListPrompts, adminUpdatePrompt, adminDeletePrompt } from './admin-extra.js';
 import { uploadPromptImage, servePromptImage } from './r2-images.js';
+import { ensurePromptImageColumns, getPromptById, ensurePromptImages } from './auto-images.js';
 
 const JSON_HEADERS = {
   'content-type': 'application/json; charset=utf-8',
@@ -96,7 +97,7 @@ const DAILY_PROMPTS = [
 ];
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
     if (request.method === 'OPTIONS') return new Response(null, { headers: JSON_HEADERS });
@@ -118,7 +119,7 @@ export default {
     if (url.pathname === '/api/admin/daily/run') return adminOnly(request, env, runDailyPostNow);
     if (url.pathname === '/api/admin/upload' && request.method === 'POST') return adminOnly(request, env, uploadPromptImage);
     if (url.pathname === '/api/admin/prompts' && request.method === 'GET') return adminOnly(request, env, (req, e) => adminListPrompts(e));
-    if (url.pathname === '/api/admin/prompts' && request.method === 'POST') return adminOnly(request, env, createPromptFromRequest);
+    if (url.pathname === '/api/admin/prompts' && request.method === 'POST') return adminOnly(request, env, (req, e) => createPromptFromRequest(req, e, ctx));
     if (url.pathname.startsWith('/api/admin/prompts/') && request.method === 'PUT') return adminOnly(request, env, (req, e) => adminUpdatePrompt(req, e, url.pathname.split('/').pop()));
     if (url.pathname.startsWith('/api/admin/prompts/') && request.method === 'DELETE') return adminOnly(request, env, (req, e) => adminDeletePrompt(e, url.pathname.split('/').pop()));
 
@@ -144,6 +145,7 @@ async function serveAppAsset(request, env) {
 }
 
 async function publishDailyPrompt(env) {
+  await ensureImageColumns(env);
   const today = new Date().toISOString().slice(0, 10);
   const existing = await env.DB.prepare('SELECT id FROM prompts WHERE slug LIKE ? LIMIT 1').bind(`daily-${today}-%`).first();
   if (existing) return { ok: true, skipped: true, reason: 'Already published today' };
@@ -153,10 +155,12 @@ async function publishDailyPrompt(env) {
   const slug = `daily-${today}-${template.slug}`;
   const category = await getOrCreateCategory(env, template.category);
 
-  const result = await env.DB.prepare('INSERT INTO prompts (slug, category_id, title_ku, title_en, title_ar, description_ku, prompt_text, preview_image_url, difficulty, rating, is_featured, is_trending, published_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)').bind(slug, category.id, template.title_ku, template.title_en, template.title_ar, template.description_ku, template.prompt_text, null, template.difficulty, template.rating, template.is_featured, template.is_trending).run();
+  const result = await env.DB.prepare('INSERT INTO prompts (slug, category_id, title_ku, title_en, title_ar, description_ku, prompt_text, preview_image_url, before_image_url, after_image_url, image_status, difficulty, rating, is_featured, is_trending, published_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)').bind(slug, category.id, template.title_ku, template.title_en, template.title_ar, template.description_ku, template.prompt_text, null, null, null, 'pending', template.difficulty, template.rating, template.is_featured, template.is_trending).run();
   const promptId = result.meta.last_row_id;
   await attachTags(env, promptId, template.tags);
-  return { ok: true, prompt_id: promptId, slug, preview_image_url: null };
+  const prompt = await getPromptById(env, promptId);
+  const imageResult = await ensurePromptImages(env, prompt);
+  return { ok: true, prompt_id: promptId, slug, ...imageResult };
 }
 
 async function runDailyPostNow(request, env) {
@@ -173,7 +177,7 @@ async function adminDashboard(request, env) {
   return json({ prompts, categories, tags });
 }
 
-async function createPromptFromRequest(request, env) {
+async function createPromptFromRequest(request, env, ctx) {
   await ensureImageColumns(env);
   const body = await request.json();
   const category = await getOrCreateCategory(env, body.category_slug || 'person-edit');
@@ -181,11 +185,17 @@ async function createPromptFromRequest(request, env) {
   const previewImageUrl = cleanImageUrl(body.preview_image_url);
   const beforeImageUrl = cleanImageUrl(body.before_image_url);
   const afterImageUrl = cleanImageUrl(body.after_image_url);
+  const initialImageStatus = beforeImageUrl && afterImageUrl ? 'ready' : 'pending';
 
-  const result = await env.DB.prepare('INSERT INTO prompts (slug, category_id, title_ku, title_en, title_ar, description_ku, description_en, description_ar, prompt_text, negative_prompt, preview_image_url, before_image_url, after_image_url, difficulty, rating, is_featured, is_trending, published_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)').bind(slug, category.id, body.title_ku, body.title_en || null, body.title_ar || null, body.description_ku || null, body.description_en || null, body.description_ar || null, body.prompt_text, body.negative_prompt || null, previewImageUrl, beforeImageUrl, afterImageUrl, body.difficulty || 'easy', body.rating || 4.8, body.is_featured ? 1 : 0, body.is_trending ? 1 : 0).run();
+  const result = await env.DB.prepare('INSERT INTO prompts (slug, category_id, title_ku, title_en, title_ar, description_ku, description_en, description_ar, prompt_text, negative_prompt, preview_image_url, before_image_url, after_image_url, image_status, difficulty, rating, is_featured, is_trending, published_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)').bind(slug, category.id, body.title_ku, body.title_en || null, body.title_ar || null, body.description_ku || null, body.description_en || null, body.description_ar || null, body.prompt_text, body.negative_prompt || null, previewImageUrl, beforeImageUrl, afterImageUrl, initialImageStatus, body.difficulty || 'easy', body.rating || 4.8, body.is_featured ? 1 : 0, body.is_trending ? 1 : 0).run();
   const promptId = result.meta.last_row_id;
   await attachTags(env, promptId, body.tags || []);
-  return json({ ok: true, id: promptId, slug, preview_image_url: previewImageUrl, before_image_url: beforeImageUrl, after_image_url: afterImageUrl }, 201);
+
+  const prompt = await getPromptById(env, promptId);
+  const imageTask = ensurePromptImages(env, prompt);
+  if (ctx?.waitUntil) ctx.waitUntil(imageTask); else await imageTask;
+
+  return json({ ok: true, id: promptId, slug, preview_image_url: previewImageUrl, before_image_url: beforeImageUrl, after_image_url: afterImageUrl, image_status: initialImageStatus }, 201);
 }
 
 async function getOrCreateCategory(env, slug) {
@@ -229,11 +239,7 @@ async function adminOnly(request, env, handler) {
 }
 
 async function ensureImageColumns(env) {
-  for (const column of ['before_image_url', 'after_image_url']) {
-    try {
-      await env.DB.prepare(`ALTER TABLE prompts ADD COLUMN ${column} TEXT`).run();
-    } catch {}
-  }
+  await ensurePromptImageColumns(env);
 }
 
 function cleanImageUrl(value) {
@@ -248,6 +254,7 @@ async function listCategories(env) {
 }
 
 async function getCategory(env, slug) {
+  await ensureImageColumns(env);
   const category = await env.DB.prepare('SELECT * FROM categories WHERE slug = ?').bind(slug).first();
   if (!category) return json({ error: 'Category not found' }, 404);
   const prompts = await env.DB.prepare('SELECT prompts.*, categories.slug AS category_slug, categories.name_ku AS category_name FROM prompts JOIN categories ON prompts.category_id = categories.id WHERE categories.slug = ? ORDER BY prompts.published_at DESC LIMIT 100').bind(slug).all();
