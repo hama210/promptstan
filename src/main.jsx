@@ -1,7 +1,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
-import AdminPanel from "./admin/AdminPanelV3.jsx";
+import AdminPanel from "./admin/AdminPanelV4.jsx";
 import "./styles.css";
 import "./category-fix.css";
 import "./no-categories.css";
