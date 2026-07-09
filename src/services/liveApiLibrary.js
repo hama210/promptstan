@@ -22,12 +22,12 @@ export async function loadLibraryData() {
 
     return {
       categories: apiCategories.length ? apiCategories.map(normalizeCategory) : fallbackCategories,
-      prompts: apiPrompts.length ? apiPrompts.map(normalizePrompt) : fallbackPrompts,
+      prompts: apiPrompts.length ? apiPrompts.map(normalizePrompt) : fallbackPrompts.map(normalizePrompt),
       tags: apiTags.length ? apiTags.map((tag) => tag.name) : fallbackTags,
       source: apiPrompts.length ? 'api' : 'static'
     };
   } catch {
-    return { categories: fallbackCategories, prompts: fallbackPrompts, tags: fallbackTags, source: 'static' };
+    return { categories: fallbackCategories, prompts: fallbackPrompts.map(normalizePrompt), tags: fallbackTags, source: 'static' };
   }
 }
 
@@ -60,21 +60,29 @@ function normalizeCategory(category) {
 }
 
 function normalizePrompt(prompt, index = 0) {
+  const title = prompt.title_ku || prompt.title_en || prompt.title_ar || prompt.title || 'Untitled Prompt';
+  const slug = prompt.slug || `prompt-${prompt.id || index}`;
+  const englishTitle = prompt.title_en || prompt.imageTitle || title;
+
   return {
     id: prompt.id,
-    slug: prompt.slug,
-    title: prompt.title_ku || prompt.title_en || prompt.title_ar || 'Untitled Prompt',
+    slug,
+    title,
     category: prompt.category_name || prompt.category || 'دەستکاری کەس',
-    badge: prompt.is_trending ? 'ترێند' : prompt.is_featured ? 'هەڵبژاردە' : 'نوێ',
+    badge: prompt.is_trending ? 'ترێند' : prompt.is_featured ? 'هەڵبژاردە' : prompt.badge || 'نوێ',
     views: formatNumber(prompt.views || 0),
     copies: formatNumber(prompt.copies || 0),
     rating: String(prompt.rating || '4.8'),
-    imageTitle: prompt.title_en || prompt.title_ku || 'Person Edit',
+    imageTitle: englishTitle || 'Person Edit',
     text: prompt.prompt_text || prompt.text || '',
-    previewImage: normalizeImageUrl(prompt.preview_image_url || prompt.previewImage || prompt.image || ''),
+    previewImage: normalizeImageUrl(prompt.preview_image_url || prompt.previewImage || prompt.image || autoPreviewPath(slug, englishTitle)),
     gradient: prompt.gradient || gradients[index % gradients.length],
     tags: Array.isArray(prompt.tags) ? prompt.tags.map((tag) => tag.name || tag) : []
   };
+}
+
+function autoPreviewPath(slug, title) {
+  return `/api/preview/${encodeURIComponent(String(slug || 'person-edit').replace(/\.svg$/i, ''))}.svg?title=${encodeURIComponent(String(title || 'Person Edit'))}`;
 }
 
 function normalizeImageUrl(value) {
