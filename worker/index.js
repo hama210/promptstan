@@ -1,4 +1,5 @@
 import { adminListPrompts, adminUpdatePrompt, adminDeletePrompt } from './admin-extra.js';
+import { uploadPromptImage, servePromptImage } from './r2-images.js';
 
 const JSON_HEADERS = {
   'content-type': 'application/json; charset=utf-8',
@@ -18,6 +19,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (request.method === 'OPTIONS') return new Response(null, { headers: JSON_HEADERS });
+    if (url.pathname.startsWith('/uploads/')) return servePromptImage(request, env);
 
     if (url.pathname === '/api/health') return json({ ok: true, service: 'promptstan-api' });
     if (url.pathname === '/api/categories') return listCategories(env);
@@ -33,6 +35,7 @@ export default {
 
     if (url.pathname === '/api/admin/dashboard') return adminOnly(request, env, adminDashboard);
     if (url.pathname === '/api/admin/daily/run') return adminOnly(request, env, runDailyPostNow);
+    if (url.pathname === '/api/admin/upload' && request.method === 'POST') return adminOnly(request, env, uploadPromptImage);
     if (url.pathname === '/api/admin/prompts' && request.method === 'GET') return adminOnly(request, env, (req, e) => adminListPrompts(e));
     if (url.pathname === '/api/admin/prompts' && request.method === 'POST') return adminOnly(request, env, createPromptFromRequest);
     if (url.pathname.startsWith('/api/admin/prompts/') && request.method === 'PUT') return adminOnly(request, env, (req, e) => adminUpdatePrompt(req, e, url.pathname.split('/').pop()));
