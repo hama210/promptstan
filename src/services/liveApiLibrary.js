@@ -63,6 +63,9 @@ function normalizePrompt(prompt, index = 0) {
   const title = prompt.title_ku || prompt.title_en || prompt.title_ar || prompt.title || 'Untitled Prompt';
   const slug = prompt.slug || `prompt-${prompt.id || index}`;
   const englishTitle = prompt.title_en || prompt.imageTitle || title;
+  const beforeImage = normalizeImageUrl(prompt.before_image_url || prompt.beforeImage || '');
+  const afterImage = normalizeImageUrl(prompt.after_image_url || prompt.afterImage || '');
+  const previewImage = normalizeImageUrl(prompt.preview_image_url || prompt.previewImage || prompt.image || afterImage || '');
 
   return {
     id: prompt.id,
@@ -75,7 +78,10 @@ function normalizePrompt(prompt, index = 0) {
     rating: String(prompt.rating || '4.8'),
     imageTitle: englishTitle || 'Person Edit',
     text: prompt.prompt_text || prompt.text || '',
-    previewImage: normalizeImageUrl(prompt.preview_image_url || prompt.previewImage || prompt.image || ''),
+    beforeImage,
+    afterImage,
+    hasBeforeAfter: Boolean(beforeImage && afterImage),
+    previewImage,
     gradient: prompt.gradient || gradients[index % gradients.length],
     tags: Array.isArray(prompt.tags) ? prompt.tags.map((tag) => tag.name || tag) : []
   };
