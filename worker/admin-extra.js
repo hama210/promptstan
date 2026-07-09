@@ -1,5 +1,3 @@
-import { autoPreviewPath } from './preview.js';
-
 export async function adminListPrompts(env) {
   const result = await env.DB.prepare(
     'SELECT prompts.*, categories.slug AS category_slug, categories.name_ku AS category_name FROM prompts JOIN categories ON prompts.category_id = categories.id ORDER BY prompts.id DESC LIMIT 200'
@@ -10,9 +8,7 @@ export async function adminListPrompts(env) {
 export async function adminUpdatePrompt(request, env, id) {
   const body = await request.json();
   const category = await getOrCreateCategory(env, body.category_slug || 'person-edit');
-  const current = await env.DB.prepare('SELECT slug FROM prompts WHERE id = ?').bind(id).first();
-  const slug = current?.slug || slugify(body.title_en || body.title_ku || `prompt-${id}`);
-  const previewImageUrl = body.preview_image_url || autoPreviewPath(slug, body.title_en || body.title_ku || 'Person Edit');
+  const previewImageUrl = isFakePreview(body.preview_image_url) ? null : body.preview_image_url || null;
 
   await env.DB.prepare(
     'UPDATE prompts SET category_id = ?, title_ku = ?, title_en = ?, title_ar = ?, description_ku = ?, description_en = ?, description_ar = ?, prompt_text = ?, negative_prompt = ?, preview_image_url = ?, difficulty = ?, rating = ?, is_featured = ?, is_trending = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
@@ -74,6 +70,10 @@ async function attachTags(env, promptId, tags) {
     const tag = await env.DB.prepare('SELECT id FROM tags WHERE slug = ?').bind(slug).first();
     if (tag) await env.DB.prepare('INSERT OR IGNORE INTO prompt_tags (prompt_id, tag_id) VALUES (?, ?)').bind(promptId, tag.id).run();
   }
+}
+
+function isFakePreview(value) {
+  return String(value || '').includes('/api/preview/');
 }
 
 function slugify(value) {
