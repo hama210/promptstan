@@ -1,0 +1,35 @@
+.adminShell {
+  min-height: 100vh;
+  padding: 28px 20px 80px;
+  background: radial-gradient(circle at 80% 0%, rgba(0,245,160,.18), transparent 30%), radial-gradient(circle at 10% 20%, rgba(139,92,246,.26), transparent 28%), #09090b;
+  color: white;
+  font-family: 'Noto Sans Arabic', system-ui, sans-serif;
+}
+.adminHero, .adminCard, .adminGrid { max-width: 1180px; margin-left: auto; margin-right: auto; }
+.adminHero { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 24px; }
+.adminHero h1 { font-size: clamp(34px, 6vw, 64px); margin: 14px 0 8px; line-height: 1.05; }
+.adminHero p, .adminCard p { color: #c4c4cf; line-height: 1.8; }
+.adminBadge { display: inline-flex; align-items: center; gap: 8px; color: #00f5a0; border: 1px solid rgba(0,245,160,.35); background: rgba(0,245,160,.08); border-radius: 999px; padding: 8px 14px; }
+.adminHome { color: #07100d; background: #00f5a0; text-decoration: none; border-radius: 16px; padding: 12px 16px; font-weight: 800; white-space: nowrap; }
+.adminCard { border: 1px solid rgba(255,255,255,.11); background: rgba(20,20,26,.78); border-radius: 28px; padding: 22px; margin-bottom: 18px; box-shadow: 0 20px 70px rgba(0,0,0,.22); }
+.adminCardTitle { display: flex; align-items: center; gap: 10px; }
+.adminCardTitle h2 { margin: 0; }
+.adminTokenRow { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+.adminTokenRow input, .promptForm input, .promptForm textarea, .promptForm select { width: 100%; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.06); color: white; border-radius: 16px; padding: 12px 14px; outline: 0; }
+.adminTokenRow button, .dailyCard button, .submitPrompt { border: 0; border-radius: 16px; padding: 12px 18px; background: linear-gradient(135deg, #8b5cf6, #00f5a0); color: #07100d; font-weight: 900; }
+.adminMessage { max-width: 1180px; margin: 0 auto 18px; border-radius: 18px; padding: 14px 16px; background: rgba(0,245,160,.12); border: 1px solid rgba(0,245,160,.28); color: #00f5a0; }
+.adminGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+.statCard { margin: 0; min-height: 135px; display: grid; align-content: center; gap: 8px; }
+.statCard svg { color: #00f5a0; }
+.statCard span { color: #a1a1aa; }
+.statCard strong { font-size: 36px; }
+.dailyCard { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.promptForm { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-top: 18px; }
+.promptForm label { color: #d4d4dd; display: grid; gap: 8px; }
+.promptForm .wide, .submitPrompt { grid-column: 1 / -1; }
+.checkLabel { display: flex !important; align-items: center; flex-direction: row; gap: 10px !important; }
+.checkLabel input { width: auto; }
+.submitPrompt { margin-top: 8px; }
+button:disabled { opacity: .5; cursor: not-allowed; }
+@media (max-width: 800px) { .adminHero, .dailyCard { flex-direction: column; align-items: stretch; } .adminGrid { grid-template-columns: repeat(2, 1fr); } .promptForm { grid-template-columns: 1fr; } }
+@media (max-width: 520px) { .adminGrid { grid-template-columns: 1fr; } .adminTokenRow { grid-template-columns: 1fr; } }
