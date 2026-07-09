@@ -7,7 +7,7 @@ export async function adminListPrompts(env) {
 
 export async function adminUpdatePrompt(request, env, id) {
   const body = await request.json();
-  const category = await getOrCreateCategory(env, body.category_slug || 'kurdish-style');
+  const category = await getOrCreateCategory(env, body.category_slug || 'person-edit');
 
   await env.DB.prepare(
     'UPDATE prompts SET category_id = ?, title_ku = ?, title_en = ?, title_ar = ?, description_ku = ?, description_en = ?, description_ar = ?, prompt_text = ?, negative_prompt = ?, preview_image_url = ?, difficulty = ?, rating = ?, is_featured = ?, is_trending = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
@@ -46,14 +46,16 @@ async function getOrCreateCategory(env, slug) {
   if (existing) return existing;
 
   const names = {
-    'kurdish-style': ['☀️', 'کوردی ستایل', 'Kurdish Style', 'ستايل كردي'],
+    'person-edit': ['👤', 'دەستکاری کەس', 'Person Edit', 'تعديل الأشخاص'],
+    'kurdish-style': ['☀️', 'ستایلی کوردی', 'Kurdish Style', 'ستايل كردي'],
+    outfit: ['👔', 'جل و بەرگ', 'Outfit Style', 'تغيير الملابس'],
+    movies: ['🎞️', 'ستایلی فیلم', 'Movie Style', 'ستايل الأفلام'],
+    couples: ['👥', 'دوو کەس', 'Two People', 'شخصان'],
     islamic: ['🕌', 'ئیسلامی', 'Islamic', 'إسلامي'],
-    couples: ['👥', 'جووت و خێزان', 'Couples', 'الأزواج'],
     cars: ['🚗', 'ئۆتۆمبێل', 'Cars', 'السيارات'],
-    movies: ['🎞️', 'فیلم و پۆستەر', 'Movies', 'الأفلام'],
     characters: ['🦸', 'کارەکتەر', 'Characters', 'الشخصيات']
   };
-  const data = names[slug] || ['📂', slug, slug, slug];
+  const data = names[slug] || ['👤', 'دەستکاری کەس', 'Person Edit', 'تعديل الأشخاص'];
   await env.DB.prepare('INSERT OR IGNORE INTO categories (slug, icon, name_ku, name_en, name_ar) VALUES (?, ?, ?, ?, ?)').bind(slug, ...data).run();
   return env.DB.prepare('SELECT * FROM categories WHERE slug = ?').bind(slug).first();
 }
