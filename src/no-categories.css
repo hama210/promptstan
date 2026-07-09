@@ -2,3 +2,53 @@
 .bottomNav button:nth-child(4) { display: none !important; }
 .promptMeta span:first-child { display: none !important; }
 .collections { display: none !important; }
+
+.promptImage.hasPreview,
+.modalVisual.hasPreview,
+.featureImage.hasPreview {
+  background: #111827;
+}
+
+.promptImagePreview,
+.modalPreviewImage,
+.featurePreviewImage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+
+.promptImage.hasPreview::before,
+.modalVisual.hasPreview::before,
+.featureImage.hasPreview::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.72));
+}
+
+.promptImage.hasPreview::after,
+.modalVisual.hasPreview::after,
+.featureImage.hasPreview::after {
+  display: none;
+}
+
+.promptImage.hasPreview .promptBadge,
+.promptImage.hasPreview strong,
+.modalVisual.hasPreview span,
+.modalVisual.hasPreview strong,
+.featureImage.hasPreview .orbit,
+.featureImage.hasPreview .glassPreview,
+.featureImage.hasPreview b {
+  position: relative;
+  z-index: 2;
+}
+
+.promptImage.hasPreview strong,
+.modalVisual.hasPreview strong,
+.featureImage.hasPreview b {
+  text-shadow: 0 8px 28px rgba(0,0,0,.75);
+}
