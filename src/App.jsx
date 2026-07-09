@@ -17,7 +17,6 @@ const ui = {
     searchPlaceholder: 'چی دەتەوێت بکەیت؟ وەک: دوو کەس، Kurdish clothes، movie style',
     search: 'گەڕان',
     today: 'پرۆمپتی ئەمڕۆ',
-    todayTitle: 'پۆرترێتی سینەمایی بە ڕۆشنایی زێڕین',
     todayDesc: 'پرۆمپتێکی پڕۆفیشناڵ بۆ دەستکاری وێنەی کەس بە شێوەی ڕاستەقینە، جوان و ئامادە بۆ سۆشیال میدیا.',
     copy: 'کۆپی',
     copyPrompt: 'کۆپی پرۆمپت',
@@ -39,7 +38,9 @@ const ui = {
     addFav: 'زیادکردن بۆ دڵخوازەکان',
     inFav: 'لە دڵخوازەکاندا هەیە',
     copied: 'کۆپی کرا',
-    promptCount: 'پرۆمپت'
+    promptCount: 'پرۆمپت',
+    before: 'پێش',
+    after: 'دوای'
   },
   EN: {
     free: 'Free AI Prompt Library',
@@ -48,7 +49,6 @@ const ui = {
     searchPlaceholder: 'What do you want? Try: two people, Kurdish clothes, movie style',
     search: 'Search',
     today: 'Prompt of the Day',
-    todayTitle: 'Golden Hour Cinematic Portrait',
     todayDesc: 'A professional prompt for realistic person edits that look clean, cinematic, and social-media-ready.',
     copy: 'Copy',
     copyPrompt: 'Copy Prompt',
@@ -70,7 +70,9 @@ const ui = {
     addFav: 'Add to Favorites',
     inFav: 'Saved in Favorites',
     copied: 'copied',
-    promptCount: 'prompts'
+    promptCount: 'prompts',
+    before: 'Before',
+    after: 'After'
   },
   AR: {
     free: 'مكتبة موجهات AI مجانية',
@@ -79,7 +81,6 @@ const ui = {
     searchPlaceholder: 'ماذا تريد؟ جرّب: شخصين، ملابس كردية، أسلوب فيلم',
     search: 'بحث',
     today: 'موجه اليوم',
-    todayTitle: 'بورتريه سينمائي بإضاءة ذهبية',
     todayDesc: 'موجه احترافي لتعديل صور الأشخاص بشكل واقعي وسينمائي وجاهز للسوشيال ميديا.',
     copy: 'نسخ',
     copyPrompt: 'نسخ الموجه',
@@ -101,9 +102,38 @@ const ui = {
     addFav: 'إضافة للمفضلة',
     inFav: 'موجود في المفضلة',
     copied: 'تم النسخ',
-    promptCount: 'موجهات'
+    promptCount: 'موجهات',
+    before: 'قبل',
+    after: 'بعد'
   }
 };
+
+function VisualPreview({ item, t, type = 'card' }) {
+  const className = type === 'modal' ? 'modalVisual' : type === 'feature' ? 'featureImage premiumScene' : 'promptImage';
+
+  if (item?.hasBeforeAfter) {
+    return <div className={`${className} beforeAfterVisual`}>
+      <div className="beforeAfterPane"><img src={item.beforeImage} alt={`${item.title} before`} loading="lazy" /><span>{t.before}</span></div>
+      <div className="beforeAfterPane"><img src={item.afterImage} alt={`${item.title} after`} loading="lazy" /><span>{t.after}</span></div>
+      <strong className="beforeAfterTitle">{item.imageTitle}</strong>
+      <span className="promptBadge beforeAfterBadge">{item.badge}</span>
+    </div>;
+  }
+
+  if (item?.previewImage) {
+    return <div className={`${className} hasPreview`}>
+      <img className={type === 'modal' ? 'modalPreviewImage' : type === 'feature' ? 'featurePreviewImage' : 'promptImagePreview'} src={item.previewImage} alt={item.title} loading="lazy" />
+      <span className="promptBadge">{item.badge}</span>
+      <strong>{item.imageTitle}</strong>
+    </div>;
+  }
+
+  return <div className={`${className} ${item?.gradient || 'purple'}`}>
+    {type === 'feature' && <><div className="orbit one" /><div className="orbit two" /><div className="glassPreview"><span>{t.before}</span><span>{t.after}</span></div></>}
+    <span className="promptBadge">{item?.badge || 'نوێ'}</span>
+    <strong>{item?.imageTitle || 'Person Edit'}</strong>
+  </div>;
+}
 
 export default function App() {
   const [query, setQuery] = useState('');
@@ -181,15 +211,10 @@ export default function App() {
 
   const PromptCard = ({ item }) => {
     const isFavorite = favoriteIds.includes(item.id);
-    const visualClass = item.previewImage ? 'promptImage hasPreview' : `promptImage ${item.gradient || 'purple'}`;
 
     return <article className="promptCard">
       <button className={isFavorite ? 'heartButton active' : 'heartButton'} onClick={() => toggleFavorite(item.id)} aria-label="favorite"><Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} /></button>
-      <div className={visualClass}>
-        {item.previewImage && <img className="promptImagePreview" src={item.previewImage} alt={item.title} loading="lazy" />}
-        <span className="promptBadge">{item.badge}</span>
-        <strong>{item.imageTitle}</strong>
-      </div>
+      <VisualPreview item={item} t={t} />
       <div className="promptMeta"><span>{item.category}</span><span>⭐ {item.rating}</span><span>👁 {item.views}</span><span>📋 {item.copies}</span></div>
       <h3>{item.title}</h3>
       <p>{item.text}</p>
@@ -204,11 +229,7 @@ export default function App() {
     {activePrompt && <div className="modalOverlay" onClick={() => setActivePrompt(null)}>
       <section className="promptModal" onClick={(event) => event.stopPropagation()}>
         <button className="modalClose" onClick={() => setActivePrompt(null)}><X size={20} /></button>
-        <div className={activePrompt.previewImage ? 'modalVisual hasPreview' : `modalVisual ${activePrompt.gradient || 'purple'}`}>
-          {activePrompt.previewImage && <img className="modalPreviewImage" src={activePrompt.previewImage} alt={activePrompt.title} />}
-          <span>{activePrompt.badge}</span>
-          <strong>{activePrompt.imageTitle}</strong>
-        </div>
+        <VisualPreview item={activePrompt} t={t} type="modal" />
         <div className="modalContent">
           <div className="promptMeta modalMeta"><span>{activePrompt.category}</span><span>⭐ {activePrompt.rating}</span><span>👁 {activePrompt.views}</span><span>📋 {activePrompt.copies}</span></div>
           <h2>{activePrompt.title}</h2>
@@ -225,7 +246,7 @@ export default function App() {
 
     <section className="hero" id="home"><div className="heroBadge"><Sparkles size={18} /> {t.free}</div><h1>{t.hero}</h1><p>{t.desc}</p><div className="searchBox" id="search"><Search size={22} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t.searchPlaceholder} /><button><Search size={18} /> {t.search}</button></div><div className="tags">{tags.map((tag) => <button key={tag} onClick={() => setQuery(tag.replace('#', ''))}>{tag}</button>)}</div></section>
 
-    <section className="feature"><div className={featuredPrompt.previewImage ? 'featureImage premiumScene hasPreview' : 'featureImage premiumScene'}>{featuredPrompt.previewImage && <img className="featurePreviewImage" src={featuredPrompt.previewImage} alt={featuredPrompt.title} />}<div className="orbit one" /><div className="orbit two" /><div className="glassPreview"><span>Before</span><span>After</span></div><b>Prompt of the Day</b></div><div className="featureText"><div className="sectionLabel"><Star size={18} /> {t.today}</div><h2>{featuredPrompt.title}</h2><p>{t.todayDesc}</p><div className="featureStats"><span><Eye size={16} /> {featuredPrompt.views}</span><span><Heart size={16} /> {favoriteIds.length}</span><span><Zap size={16} /> {featuredPrompt.copies}</span></div><div className="featureActions"><button className="primary" onClick={() => copyText(featuredPrompt.text, featuredPrompt.title, featuredPrompt.id)}>📋 {t.copyPrompt}</button><button className="previewButton" onClick={() => openPrompt(featuredPrompt)}><Eye size={18} /> {t.preview}</button></div></div></section>
+    <section className="feature"><VisualPreview item={featuredPrompt} t={t} type="feature" /><div className="featureText"><div className="sectionLabel"><Star size={18} /> {t.today}</div><h2>{featuredPrompt.title}</h2><p>{t.todayDesc}</p><div className="featureStats"><span><Eye size={16} /> {featuredPrompt.views}</span><span><Heart size={16} /> {favoriteIds.length}</span><span><Zap size={16} /> {featuredPrompt.copies}</span></div><div className="featureActions"><button className="primary" onClick={() => copyText(featuredPrompt.text, featuredPrompt.title, featuredPrompt.id)}>📋 {t.copyPrompt}</button><button className="previewButton" onClick={() => openPrompt(featuredPrompt)}><Eye size={18} /> {t.preview}</button></div></div></section>
 
     <section className="section"><div className="sectionTitle"><h2><Flame size={24} /> {t.trending}</h2><a>{promptItems.slice(0, 3).length} {t.promptCount}</a></div><div className="miniRow">{promptItems.slice(0, 3).map((item) => <button key={item.id} className="miniTrend" onClick={() => openPrompt(item)}><span>{item.badge}</span><strong>{item.title}</strong><small>👁 {item.views} • 📋 {item.copies}</small></button>)}</div></section>
     <section className="section"><div className="sectionTitle"><h2><Flame size={24} /> {query ? t.results : t.popular}</h2><a>{filteredPrompts.length} {t.promptCount}</a></div><div className="promptGrid">{filteredPrompts.map((item) => <PromptCard item={item} key={item.id} />)}</div></section>
