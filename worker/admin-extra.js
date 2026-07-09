@@ -13,9 +13,10 @@ export async function adminUpdatePrompt(request, env, id) {
   const previewImageUrl = cleanImageUrl(body.preview_image_url);
   const beforeImageUrl = cleanImageUrl(body.before_image_url);
   const afterImageUrl = cleanImageUrl(body.after_image_url);
+  const imageStatus = beforeImageUrl && afterImageUrl ? 'ready' : 'pending';
 
   await env.DB.prepare(
-    'UPDATE prompts SET category_id = ?, title_ku = ?, title_en = ?, title_ar = ?, description_ku = ?, description_en = ?, description_ar = ?, prompt_text = ?, negative_prompt = ?, preview_image_url = ?, before_image_url = ?, after_image_url = ?, difficulty = ?, rating = ?, is_featured = ?, is_trending = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+    'UPDATE prompts SET category_id = ?, title_ku = ?, title_en = ?, title_ar = ?, description_ku = ?, description_en = ?, description_ar = ?, prompt_text = ?, negative_prompt = ?, preview_image_url = ?, before_image_url = ?, after_image_url = ?, image_status = ?, image_error = NULL, difficulty = ?, rating = ?, is_featured = ?, is_trending = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
   ).bind(
     category.id,
     body.title_ku,
@@ -29,6 +30,7 @@ export async function adminUpdatePrompt(request, env, id) {
     previewImageUrl,
     beforeImageUrl,
     afterImageUrl,
+    imageStatus,
     body.difficulty || 'easy',
     body.rating || 4.8,
     body.is_featured ? 1 : 0,
@@ -38,7 +40,7 @@ export async function adminUpdatePrompt(request, env, id) {
 
   await env.DB.prepare('DELETE FROM prompt_tags WHERE prompt_id = ?').bind(id).run();
   await attachTags(env, id, body.tags || []);
-  return json({ ok: true, id, preview_image_url: previewImageUrl, before_image_url: beforeImageUrl, after_image_url: afterImageUrl });
+  return json({ ok: true, id, preview_image_url: previewImageUrl, before_image_url: beforeImageUrl, after_image_url: afterImageUrl, image_status: imageStatus });
 }
 
 export async function adminDeletePrompt(env, id) {
@@ -49,9 +51,14 @@ export async function adminDeletePrompt(env, id) {
 }
 
 async function ensureImageColumns(env) {
-  for (const column of ['before_image_url', 'after_image_url']) {
+  for (const sql of [
+    'ALTER TABLE prompts ADD COLUMN before_image_url TEXT',
+    'ALTER TABLE prompts ADD COLUMN after_image_url TEXT',
+    'ALTER TABLE prompts ADD COLUMN image_status TEXT DEFAULT "pending"',
+    'ALTER TABLE prompts ADD COLUMN image_error TEXT'
+  ]) {
     try {
-      await env.DB.prepare(`ALTER TABLE prompts ADD COLUMN ${column} TEXT`).run();
+      await env.DB.prepare(sql).run();
     } catch {}
   }
 }
