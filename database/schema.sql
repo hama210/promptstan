@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS prompts (
   preview_image_url TEXT,
   before_image_url TEXT,
   after_image_url TEXT,
+  image_status TEXT DEFAULT 'pending',
+  image_error TEXT,
   difficulty TEXT DEFAULT 'easy',
   rating REAL DEFAULT 0,
   views INTEGER DEFAULT 0,
