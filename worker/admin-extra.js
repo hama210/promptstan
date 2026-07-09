@@ -1,4 +1,5 @@
 export async function adminListPrompts(env) {
+  await ensureImageColumns(env);
   const result = await env.DB.prepare(
     'SELECT prompts.*, categories.slug AS category_slug, categories.name_ku AS category_name FROM prompts JOIN categories ON prompts.category_id = categories.id ORDER BY prompts.id DESC LIMIT 200'
   ).all();
@@ -6,12 +7,15 @@ export async function adminListPrompts(env) {
 }
 
 export async function adminUpdatePrompt(request, env, id) {
+  await ensureImageColumns(env);
   const body = await request.json();
   const category = await getOrCreateCategory(env, body.category_slug || 'person-edit');
-  const previewImageUrl = isFakePreview(body.preview_image_url) ? null : body.preview_image_url || null;
+  const previewImageUrl = cleanImageUrl(body.preview_image_url);
+  const beforeImageUrl = cleanImageUrl(body.before_image_url);
+  const afterImageUrl = cleanImageUrl(body.after_image_url);
 
   await env.DB.prepare(
-    'UPDATE prompts SET category_id = ?, title_ku = ?, title_en = ?, title_ar = ?, description_ku = ?, description_en = ?, description_ar = ?, prompt_text = ?, negative_prompt = ?, preview_image_url = ?, difficulty = ?, rating = ?, is_featured = ?, is_trending = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+    'UPDATE prompts SET category_id = ?, title_ku = ?, title_en = ?, title_ar = ?, description_ku = ?, description_en = ?, description_ar = ?, prompt_text = ?, negative_prompt = ?, preview_image_url = ?, before_image_url = ?, after_image_url = ?, difficulty = ?, rating = ?, is_featured = ?, is_trending = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
   ).bind(
     category.id,
     body.title_ku,
@@ -23,6 +27,8 @@ export async function adminUpdatePrompt(request, env, id) {
     body.prompt_text,
     body.negative_prompt || null,
     previewImageUrl,
+    beforeImageUrl,
+    afterImageUrl,
     body.difficulty || 'easy',
     body.rating || 4.8,
     body.is_featured ? 1 : 0,
@@ -32,7 +38,7 @@ export async function adminUpdatePrompt(request, env, id) {
 
   await env.DB.prepare('DELETE FROM prompt_tags WHERE prompt_id = ?').bind(id).run();
   await attachTags(env, id, body.tags || []);
-  return json({ ok: true, id, preview_image_url: previewImageUrl });
+  return json({ ok: true, id, preview_image_url: previewImageUrl, before_image_url: beforeImageUrl, after_image_url: afterImageUrl });
 }
 
 export async function adminDeletePrompt(env, id) {
@@ -40,6 +46,20 @@ export async function adminDeletePrompt(env, id) {
   await env.DB.prepare('DELETE FROM prompt_collections WHERE prompt_id = ?').bind(id).run();
   await env.DB.prepare('DELETE FROM prompts WHERE id = ?').bind(id).run();
   return json({ ok: true, id });
+}
+
+async function ensureImageColumns(env) {
+  for (const column of ['before_image_url', 'after_image_url']) {
+    try {
+      await env.DB.prepare(`ALTER TABLE prompts ADD COLUMN ${column} TEXT`).run();
+    } catch {}
+  }
+}
+
+function cleanImageUrl(value) {
+  const image = String(value || '').trim();
+  if (!image || image.includes('/api/preview/')) return null;
+  return image;
 }
 
 async function getOrCreateCategory(env, slug) {
@@ -70,10 +90,6 @@ async function attachTags(env, promptId, tags) {
     const tag = await env.DB.prepare('SELECT id FROM tags WHERE slug = ?').bind(slug).first();
     if (tag) await env.DB.prepare('INSERT OR IGNORE INTO prompt_tags (prompt_id, tag_id) VALUES (?, ?)').bind(promptId, tag.id).run();
   }
-}
-
-function isFakePreview(value) {
-  return String(value || '').includes('/api/preview/');
 }
 
 function slugify(value) {
