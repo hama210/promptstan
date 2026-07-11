@@ -3,7 +3,7 @@ name: Force Deploy PromptStan Image Fix
 on:
   push:
     branches:
-      - agent/force-deploy-image-fix
+      - agent/fix-r2-image-reload
 
 permissions:
   contents: read
@@ -60,7 +60,7 @@ jobs:
           for attempt in $(seq 1 18); do
             health="$(curl -fsS --retry 3 --retry-delay 2 https://promptstan-api.hhhh46529.workers.dev/api/health)"
             printf '%s\n' "$health"
-            if printf '%s' "$health" | grep -F '"image_pipeline":"flux-sdxl-safe-v3"' >/dev/null; then
+            if printf '%s' "$health" | grep -F '"image_pipeline":"flux-sdxl-r2-direct-v5"' >/dev/null; then
               exit 0
             fi
             sleep 5
@@ -82,7 +82,7 @@ jobs:
             fi
 
             if printf '%s' "$body" | grep -F '"image_status":"failed"' >/dev/null \
-              && ! printf '%s' "$body" | grep -E 'input tensor `image`|Input prompt contains NSFW content' >/dev/null; then
+              && ! printf '%s' "$body" | grep -E 'input tensor `image`|Input prompt contains NSFW content|Could not load image: 404|Could not load R2 image:' >/dev/null; then
               echo 'The corrected pipeline returned a new error.' >&2
               exit 1
             fi
