@@ -304,7 +304,19 @@ async function imageResponseToArrayBuffer(response) {
 }
 
 async function loadImageSource(value, env = {}) {
-  const response = await fetch(toAbsoluteUrl(value, env));
+  const source = String(value || '');
+  const uploadKey = extractUploadKey(source);
+
+  if (uploadKey && env.PROMPT_IMAGES) {
+    const object = await env.PROMPT_IMAGES.get(uploadKey);
+    if (!object) throw new Error(`Could not load R2 image: ${uploadKey}`);
+    return {
+      buffer: await object.arrayBuffer(),
+      contentType: normalizeImageContentType(object.httpMetadata?.contentType)
+    };
+  }
+
+  const response = await fetch(toAbsoluteUrl(source, env));
   if (!response.ok) throw new Error(`Could not load image: ${response.status}`);
   return {
     buffer: await response.arrayBuffer(),
@@ -319,6 +331,14 @@ async function storeImage(env, key, buffer, contentType) {
       cacheControl: 'public, max-age=31536000, immutable'
     }
   });
+}
+
+function extractUploadKey(value) {
+  const marker = '/uploads/';
+  const index = String(value || '').indexOf(marker);
+  if (index < 0) return null;
+  const rawKey = String(value).slice(index + marker.length).split(/[?#]/)[0];
+  return rawKey ? decodeURIComponent(rawKey) : null;
 }
 
 function toAbsoluteUrl(value, env = {}) {
