@@ -205,7 +205,7 @@ async function callWorkersAIImageEdit(env, prompt, imageSource) {
     {
       prompt,
       negative_prompt: 'text, watermark, logo, distorted face, deformed hands, extra fingers, duplicate body parts, blurry, low quality',
-      image_b64: arrayBufferToBase64(imageSource.buffer),
+      image: arrayBufferToByteArray(imageSource.buffer),
       strength: clampNumber(env.CLOUDFLARE_IMAGE_STRENGTH, 0.68, 0.05, 1),
       num_steps: clampInteger(env.CLOUDFLARE_IMAGE_STEPS, 16, 1, 20),
       guidance: clampNumber(env.CLOUDFLARE_IMAGE_GUIDANCE, 7.5, 1, 20),
@@ -331,14 +331,8 @@ function extensionFromContentType(contentType) {
   return 'png';
 }
 
-function arrayBufferToBase64(buffer) {
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  const chunkSize = 0x8000;
-  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
-  }
-  return btoa(binary);
+function arrayBufferToByteArray(buffer) {
+  return Array.from(new Uint8Array(buffer));
 }
 
 function base64ToArrayBuffer(base64) {
