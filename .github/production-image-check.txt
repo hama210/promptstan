@@ -1,1 +1,1 @@
-PromptStan final production verification for the FLUX.2 Klein Before/After pipeline v6.
+PromptStan final synchronous FLUX.2 image upload verification v7.
