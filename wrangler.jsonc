@@ -32,10 +32,10 @@
     "PUBLIC_BASE_URL": "https://promptstan-api.hhhh46529.workers.dev",
     "CLOUDFLARE_TEXT_IMAGE_MODEL": "@cf/black-forest-labs/flux-1-schnell",
     "CLOUDFLARE_TEXT_IMAGE_STEPS": "4",
-    "CLOUDFLARE_EDIT_IMAGE_MODEL": "@cf/stabilityai/stable-diffusion-xl-base-1.0",
+    "CLOUDFLARE_EDIT_IMAGE_MODEL": "@cf/runwayml/stable-diffusion-v1-5-img2img",
     "CLOUDFLARE_IMAGE_STRENGTH": "0.68",
     "CLOUDFLARE_IMAGE_STEPS": "16",
-    "CLOUDFLARE_IMAGE_WIDTH": "768",
-    "CLOUDFLARE_IMAGE_HEIGHT": "768"
+    "CLOUDFLARE_IMAGE_WIDTH": "512",
+    "CLOUDFLARE_IMAGE_HEIGHT": "512"
   }
 }
