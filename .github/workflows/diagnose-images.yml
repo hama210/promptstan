@@ -18,61 +18,53 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Read live image health
-        run: |
-          curl -fsS --retry 5 --retry-delay 3 https://promptstan-api.hhhh46529.workers.dev/api/health/images > live-image-health.json
-          cat live-image-health.json
-
-      - name: Inspect prompt table schema
-        id: schema
-        continue-on-error: true
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          wranglerVersion: "4"
-          command: d1 execute promptstan-db --remote --json --command="PRAGMA table_info(prompts)"
-
-      - name: Inspect recent prompt image jobs
-        id: recent
-        continue-on-error: true
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          wranglerVersion: "4"
-          command: d1 execute promptstan-db --remote --json --command="SELECT id, slug, image_status, substr(COALESCE(image_error, ''), 1, 500) AS image_error, before_image_url, after_image_url, created_at, updated_at FROM prompts ORDER BY id DESC LIMIT 20"
-
-      - name: Inspect image job totals
-        id: totals
-        continue-on-error: true
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          wranglerVersion: "4"
-          command: d1 execute promptstan-db --remote --json --command="SELECT COALESCE(image_status, 'null') AS image_status, COUNT(*) AS total FROM prompts GROUP BY image_status ORDER BY total DESC"
-
-      - name: Save diagnostics
-        if: always()
+      - name: Verify dedicated img2img branch preview
         env:
-          SCHEMA_OUTPUT: ${{ steps.schema.outputs.command-output }}
-          SCHEMA_ERROR: ${{ steps.schema.outputs.command-stderr }}
-          RECENT_OUTPUT: ${{ steps.recent.outputs.command-output }}
-          RECENT_ERROR: ${{ steps.recent.outputs.command-stderr }}
-          TOTALS_OUTPUT: ${{ steps.totals.outputs.command-output }}
-          TOTALS_ERROR: ${{ steps.totals.outputs.command-stderr }}
+          PREVIEW_BASE: https://agent-final-img2img-fix-promptstan-api.hhhh46529.workers.dev
         run: |
-          printf '%s\n%s\n' "$SCHEMA_OUTPUT" "$SCHEMA_ERROR" > prompt-schema.txt
-          printf '%s\n%s\n' "$RECENT_OUTPUT" "$RECENT_ERROR" > recent-image-jobs.txt
-          printf '%s\n%s\n' "$TOTALS_OUTPUT" "$TOTALS_ERROR" > image-job-totals.txt
+          set -euo pipefail
 
-      - name: Upload diagnostics
+          for attempt in $(seq 1 24); do
+            health="$(curl -fsS --retry 3 --retry-delay 2 "$PREVIEW_BASE/api/health" || true)"
+            printf '%s\n' "$health"
+            if printf '%s' "$health" | grep -F '"image_pipeline":"flux-img2img-r2-v6"' >/dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 24 ]; then
+              echo 'The dedicated img2img preview revision was not observed.' >&2
+              exit 1
+            fi
+            sleep 5
+          done
+
+          for attempt in $(seq 1 42); do
+            body="$(curl -fsS --retry 3 --retry-delay 2 "$PREVIEW_BASE/api/health/images")"
+            printf '%s\n' "$body" | tee live-image-health.json
+
+            if printf '%s' "$body" | grep -F '"image_status":"ready"' >/dev/null \
+              && printf '%s' "$body" | grep -F '"has_before":1' >/dev/null \
+              && printf '%s' "$body" | grep -F '"has_after":1' >/dev/null; then
+              echo 'PromptStan Before and After images are ready.'
+              exit 0
+            fi
+
+            if printf '%s' "$body" | grep -F '"image_status":"failed"' >/dev/null \
+              && ! printf '%s' "$body" | grep -E 'input tensor `image`|Input prompt contains NSFW content|Could not load image: 404|Could not load R2 image:' >/dev/null; then
+              echo 'The dedicated img2img model returned a new error.' >&2
+              exit 1
+            fi
+
+            sleep 10
+          done
+
+          echo 'Image generation did not finish within the verification window.' >&2
+          exit 1
+
+      - name: Upload image health
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: promptstan-image-diagnostics
-          path: |
-            live-image-health.json
-            prompt-schema.txt
-            recent-image-jobs.txt
-            image-job-totals.txt
-          if-no-files-found: error
+          path: live-image-health.json
+          if-no-files-found: warn
           retention-days: 1
