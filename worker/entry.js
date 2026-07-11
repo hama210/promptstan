@@ -1,6 +1,6 @@
 import app from './index.js';
 import { adminUpdatePrompt, adminRetryPromptImages } from './admin-extra.js';
-import { ensurePromptImageColumns } from './auto-images.js';
+import { ensurePromptImageColumns, getConfiguredImageProvider } from './auto-images.js';
 
 const JSON_HEADERS = {
   'content-type': 'application/json; charset=utf-8',
@@ -12,6 +12,14 @@ const JSON_HEADERS = {
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+
+    if (url.pathname === '/api/health') {
+      return json({
+        ok: true,
+        service: 'promptstan-api',
+        image_provider: getConfiguredImageProvider(env) || 'missing'
+      });
+    }
 
     if (url.pathname === '/api/admin/system') {
       return adminOnly(request, env, adminSystemStatus);
@@ -47,16 +55,19 @@ async function adminSystemStatus(request, env) {
     databaseError = String(error?.message || error);
   }
 
+  const imageProvider = getConfiguredImageProvider(env);
   const status = {
     database,
     r2: Boolean(env.PROMPT_IMAGES),
+    workers_ai: Boolean(env.AI),
     openai: Boolean(env.OPENAI_API_KEY),
+    image_provider: imageProvider,
     admin_token: Boolean(env.ADMIN_TOKEN),
     daily_post_enabled: env.DAILY_POST_ENABLED !== 'false'
   };
 
   return json({
-    ok: status.database && status.r2 && status.openai && status.admin_token,
+    ok: status.database && status.r2 && Boolean(status.image_provider) && status.admin_token,
     status,
     database_error: databaseError
   });
