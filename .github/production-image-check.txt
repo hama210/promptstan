@@ -1,1 +1,1 @@
-PromptStan production verification after direct R2 Before-image loading in pipeline v5.
+PromptStan final production verification for the FLUX.2 Klein Before/After pipeline v6.
