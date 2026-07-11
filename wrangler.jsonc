@@ -14,7 +14,8 @@
     {
       "binding": "DB",
       "database_name": "promptstan-db",
-      "database_id": "f0c241b4-84f8-4cc4-bb43-55c9cc07eb7f"
+      "database_id": "f0c241b4-84f8-4cc4-bb43-55c9cc07eb7f",
+      "migrations_dir": "database/migrations"
     }
   ],
   "r2_buckets": [
@@ -24,6 +25,7 @@
     }
   ],
   "vars": {
-    "DAILY_POST_ENABLED": "true"
+    "DAILY_POST_ENABLED": "true",
+    "PUBLIC_BASE_URL": "https://promptstan-api.hhhh46529.workers.dev"
   }
 }
