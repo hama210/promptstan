@@ -20,27 +20,30 @@ jobs:
 
       - name: Inspect prompt table schema
         id: schema
+        continue-on-error: true
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           wranglerVersion: "4"
-          command: d1 execute promptstan-db --remote --json --command "PRAGMA table_info(prompts);"
+          command: d1 execute promptstan-db --remote --json --command="PRAGMA table_info(prompts)"
 
       - name: Inspect recent prompt image jobs
         id: recent
+        continue-on-error: true
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           wranglerVersion: "4"
-          command: d1 execute promptstan-db --remote --json --command "SELECT id, slug, image_status, substr(COALESCE(image_error, ''), 1, 500) AS image_error, before_image_url, after_image_url, created_at, updated_at FROM prompts ORDER BY id DESC LIMIT 20;"
+          command: d1 execute promptstan-db --remote --json --command="SELECT id, slug, image_status, substr(COALESCE(image_error, ''), 1, 500) AS image_error, before_image_url, after_image_url, created_at, updated_at FROM prompts ORDER BY id DESC LIMIT 20"
 
       - name: Inspect image job totals
         id: totals
+        continue-on-error: true
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           wranglerVersion: "4"
-          command: d1 execute promptstan-db --remote --json --command "SELECT COALESCE(image_status, 'null') AS image_status, COUNT(*) AS total FROM prompts GROUP BY image_status ORDER BY total DESC;"
+          command: d1 execute promptstan-db --remote --json --command="SELECT COALESCE(image_status, 'null') AS image_status, COUNT(*) AS total FROM prompts GROUP BY image_status ORDER BY total DESC"
 
       - name: Save diagnostics
         if: always()
