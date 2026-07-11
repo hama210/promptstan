@@ -1,9 +1,9 @@
 name: Force Deploy PromptStan Image Fix
 
 on:
-  pull_request:
+  push:
     branches:
-      - master
+      - agent/force-deploy-image-fix
 
 permissions:
   contents: read
