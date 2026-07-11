@@ -60,12 +60,12 @@ jobs:
           for attempt in $(seq 1 18); do
             health="$(curl -fsS --retry 3 --retry-delay 2 https://promptstan-api.hhhh46529.workers.dev/api/health)"
             printf '%s\n' "$health"
-            if printf '%s' "$health" | grep -F '"image_pipeline":"flux-sdxl-r2-direct-v5"' >/dev/null; then
+            if printf '%s' "$health" | grep -F '"image_pipeline":"flux-img2img-r2-v6"' >/dev/null; then
               exit 0
             fi
             sleep 5
           done
-          echo 'The corrected Worker revision was not observed.' >&2
+          echo 'The dedicated img2img Worker revision was not observed.' >&2
           exit 1
 
       - name: Queue and verify image repair
@@ -78,12 +78,13 @@ jobs:
             if printf '%s' "$body" | grep -F '"image_status":"ready"' >/dev/null \
               && printf '%s' "$body" | grep -F '"has_before":1' >/dev/null \
               && printf '%s' "$body" | grep -F '"has_after":1' >/dev/null; then
+              echo 'PromptStan Before and After images are ready.'
               exit 0
             fi
 
             if printf '%s' "$body" | grep -F '"image_status":"failed"' >/dev/null \
               && ! printf '%s' "$body" | grep -E 'input tensor `image`|Input prompt contains NSFW content|Could not load image: 404|Could not load R2 image:' >/dev/null; then
-              echo 'The corrected pipeline returned a new error.' >&2
+              echo 'The dedicated img2img pipeline returned a new error.' >&2
               exit 1
             fi
 
