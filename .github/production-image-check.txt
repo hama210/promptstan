@@ -1,1 +1,1 @@
-PromptStan production image verification after deploying the raw-byte SDXL v4 pipeline.
+PromptStan production verification after direct R2 Before-image loading in pipeline v5.
