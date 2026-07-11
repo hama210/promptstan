@@ -21,6 +21,10 @@ export default {
       });
     }
 
+    if (url.pathname === '/api/health/images') {
+      return imageJobHealth(env);
+    }
+
     if (url.pathname === '/api/admin/system') {
       return adminOnly(request, env, adminSystemStatus);
     }
@@ -42,6 +46,48 @@ export default {
     if (typeof app.scheduled === 'function') return app.scheduled(event, env, ctx);
   }
 };
+
+async function imageJobHealth(env) {
+  try {
+    await ensurePromptImageColumns(env);
+
+    const [totalsResult, recentResult] = await Promise.all([
+      env.DB.prepare(`
+        SELECT COALESCE(image_status, 'null') AS image_status, COUNT(*) AS total
+        FROM prompts
+        GROUP BY image_status
+        ORDER BY total DESC
+      `).all(),
+      env.DB.prepare(`
+        SELECT
+          id,
+          COALESCE(image_status, 'null') AS image_status,
+          substr(COALESCE(image_error, ''), 1, 400) AS image_error,
+          CASE WHEN before_image_url IS NULL OR before_image_url = '' THEN 0 ELSE 1 END AS has_before,
+          CASE WHEN after_image_url IS NULL OR after_image_url = '' THEN 0 ELSE 1 END AS has_after,
+          updated_at
+        FROM prompts
+        ORDER BY id DESC
+        LIMIT 12
+      `).all()
+    ]);
+
+    return json({
+      ok: true,
+      image_provider: getConfiguredImageProvider(env) || 'missing',
+      totals: totalsResult.results || [],
+      recent: (recentResult.results || []).map((row) => ({
+        ...row,
+        image_error: sanitizeDiagnosticError(row.image_error)
+      }))
+    }, 200, { 'cache-control': 'no-store' });
+  } catch (error) {
+    return json({
+      ok: false,
+      error: sanitizeDiagnosticError(error?.message || error)
+    }, 500, { 'cache-control': 'no-store' });
+  }
+}
 
 async function adminSystemStatus(request, env) {
   let database = false;
@@ -84,6 +130,16 @@ async function adminOnly(request, env, handler) {
   return handler(request, env);
 }
 
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), { status, headers: JSON_HEADERS });
+function sanitizeDiagnosticError(value) {
+  return String(value || '')
+    .replace(/Bearer\s+[A-Za-z0-9._~+\/-]+/gi, 'Bearer [redacted]')
+    .replace(/sk-[A-Za-z0-9_-]{10,}/g, '[redacted-key]')
+    .slice(0, 400);
+}
+
+function json(data, status = 200, extraHeaders = {}) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...JSON_HEADERS, ...extraHeaders }
+  });
 }
