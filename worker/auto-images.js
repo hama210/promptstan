@@ -156,26 +156,26 @@ function buildBeforePrompt(prompt, title) {
   const text = `${title} ${prompt.prompt_text || ''}`.toLowerCase();
 
   if (category.includes('couple') || text.includes('two people') || text.includes('couple')) {
-    return 'Realistic simple unedited casual photo of two adult people standing together, neutral clothes, natural daylight, plain background, phone camera look, no cinematic effects, no rain, no luxury styling.';
+    return 'Realistic simple unedited casual photo of two people standing together, neutral clothes, natural daylight, plain background, phone camera look, no cinematic effects, no rain, no luxury styling.';
   }
 
   if (category.includes('kurdish') || text.includes('kurdish')) {
-    return 'Realistic simple unedited photo of one Kurdish adult person in normal everyday clothes, natural daylight, plain background, phone camera look, before transformation.';
+    return 'Realistic simple unedited photo of one Kurdish person in normal everyday clothes, natural daylight, plain background, phone camera look, before transformation.';
   }
 
   if (category.includes('outfit') || text.includes('suit') || text.includes('clothes')) {
-    return 'Realistic simple unedited full body photo of one adult person wearing casual clothes, natural pose, plain background, phone camera look, before outfit transformation.';
+    return 'Realistic simple unedited full body photo of one person wearing casual clothes, natural pose, plain background, phone camera look, before outfit transformation.';
   }
 
   if (category.includes('movie') || text.includes('cinematic') || text.includes('movie')) {
-    return 'Realistic simple unedited portrait photo of one adult person, neutral expression, normal clothes, natural daylight, plain background, phone camera look, before cinematic transformation.';
+    return 'Realistic simple unedited portrait photo of one person, neutral expression, normal clothes, natural daylight, plain background, phone camera look, before cinematic transformation.';
   }
 
   if (text.includes('woman') || text.includes('girl') || text.includes('female')) {
-    return 'Realistic simple unedited portrait photo of one adult woman, natural daylight, plain background, phone camera look, no makeup transformation, before AI edit.';
+    return 'Realistic simple unedited portrait photo of one woman, natural daylight, plain background, phone camera look, no makeup transformation, before AI edit.';
   }
 
-  return 'Realistic simple unedited portrait photo of one adult man, natural daylight, plain background, phone camera look, neutral clothes, before AI edit.';
+  return 'Realistic simple unedited portrait photo of one man, natural daylight, plain background, phone camera look, neutral clothes, before AI edit.';
 }
 
 function buildAfterPrompt(prompt, title) {
