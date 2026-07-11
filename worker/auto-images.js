@@ -1,8 +1,7 @@
 const OPENAI_IMAGES_URL = 'https://api.openai.com/v1/images/generations';
 const OPENAI_EDITS_URL = 'https://api.openai.com/v1/images/edits';
 const DEFAULT_OPENAI_IMAGE_MODEL = 'gpt-image-1';
-const DEFAULT_WORKERS_AI_TEXT_MODEL = '@cf/black-forest-labs/flux-1-schnell';
-const DEFAULT_WORKERS_AI_EDIT_MODEL = '@cf/stabilityai/stable-diffusion-xl-base-1.0';
+const DEFAULT_WORKERS_AI_IMAGE_MODEL = '@cf/black-forest-labs/flux-2-klein-4b';
 const DEFAULT_PUBLIC_BASE_URL = 'https://promptstan-api.hhhh46529.workers.dev';
 
 export function getConfiguredImageProvider(env) {
@@ -41,7 +40,9 @@ export async function ensurePromptImages(env, prompt, options = {}) {
   await ensurePromptImageColumns(env);
 
   const force = Boolean(options.force);
-  if (!force && prompt.before_image_url && prompt.after_image_url) {
+  const regenerateBefore = Boolean(options.regenerateBefore);
+
+  if (!force && !regenerateBefore && prompt.before_image_url && prompt.after_image_url) {
     await setImageStatus(env, prompt.id, 'ready', null);
     return {
       ok: true,
@@ -74,7 +75,7 @@ export async function ensurePromptImages(env, prompt, options = {}) {
     let beforeImageUrl = prompt.before_image_url || null;
     let beforeSource;
 
-    if (beforeImageUrl) {
+    if (beforeImageUrl && !regenerateBefore) {
       beforeSource = await loadImageSource(beforeImageUrl, env);
     } else {
       beforeSource = await generateBeforeImageSource(env, prompt, title);
@@ -85,11 +86,12 @@ export async function ensurePromptImages(env, prompt, options = {}) {
       await persistBeforeImage(env, prompt.id, beforeImageUrl);
     }
 
-    let afterImageUrl = prompt.after_image_url || null;
-    if (force || !afterImageUrl) {
-      const afterBuffer = await generateAfterImage(env, prompt, title, beforeSource);
-      const afterKey = `generated/${safeKey(prompt.slug || prompt.id)}-after.png`;
-      await storeImage(env, afterKey, afterBuffer, 'image/png');
+    let afterImageUrl = regenerateBefore ? null : (prompt.after_image_url || null);
+    if (force || regenerateBefore || !afterImageUrl) {
+      const afterSource = await generateAfterImageSource(env, prompt, title, beforeSource);
+      const afterExtension = extensionFromContentType(afterSource.contentType);
+      const afterKey = `generated/${safeKey(prompt.slug || prompt.id)}-after.${afterExtension}`;
+      await storeImage(env, afterKey, afterSource.buffer, afterSource.contentType);
       afterImageUrl = `/uploads/${afterKey}`;
     }
 
@@ -124,7 +126,7 @@ async function claimImageJob(env, promptId) {
 async function persistBeforeImage(env, promptId, beforeImageUrl) {
   await env.DB.prepare(`
     UPDATE prompts
-    SET before_image_url = ?, image_status = 'generating', image_error = NULL, updated_at = CURRENT_TIMESTAMP
+    SET before_image_url = ?, after_image_url = NULL, image_status = 'generating', image_error = NULL, updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
   `).bind(beforeImageUrl, promptId).run();
 }
@@ -133,30 +135,33 @@ async function generateBeforeImageSource(env, prompt, title) {
   const beforePrompt = buildBeforePrompt(prompt, title);
 
   if (env.OPENAI_API_KEY) {
-    return {
-      buffer: await callOpenAIImageGeneration(env, beforePrompt),
-      contentType: 'image/png'
-    };
+    const buffer = await callOpenAIImageGeneration(env, beforePrompt);
+    return { buffer, contentType: detectImageContentType(buffer, 'image/png') };
   }
 
-  return {
-    buffer: await callWorkersAITextToImage(env, beforePrompt),
-    contentType: 'image/jpeg'
-  };
+  return callWorkersAIFlux2(env, beforePrompt, null, {
+    width: clampInteger(env.CLOUDFLARE_BEFORE_WIDTH, 512, 256, 512),
+    height: clampInteger(env.CLOUDFLARE_BEFORE_HEIGHT, 512, 256, 512)
+  });
 }
 
-async function generateAfterImage(env, prompt, title, beforeSource) {
+async function generateAfterImageSource(env, prompt, title, beforeSource) {
   const editPrompt = buildAfterPrompt(prompt, title);
 
   if (!env.OPENAI_API_KEY) {
-    return callWorkersAIImageEdit(env, editPrompt, beforeSource);
+    return callWorkersAIFlux2(env, editPrompt, beforeSource, {
+      width: clampInteger(env.CLOUDFLARE_IMAGE_WIDTH, 768, 256, 1920),
+      height: clampInteger(env.CLOUDFLARE_IMAGE_HEIGHT, 768, 256, 1920)
+    });
   }
 
   try {
-    return await callOpenAIImageEdit(env, beforeSource, editPrompt);
+    const buffer = await callOpenAIImageEdit(env, beforeSource, editPrompt);
+    return { buffer, contentType: detectImageContentType(buffer, 'image/png') };
   } catch (editError) {
     console.warn(JSON.stringify({ event: 'prompt_image_edit_fallback', prompt_id: prompt.id, error: String(editError?.message || editError) }));
-    return callOpenAIImageGeneration(env, `${editPrompt}\n\nCreate the final edited result as a realistic high quality photo.`);
+    const buffer = await callOpenAIImageGeneration(env, `${editPrompt}\n\nCreate the final edited result as a realistic high quality photo.`);
+    return { buffer, contentType: detectImageContentType(buffer, 'image/png') };
   }
 }
 
@@ -188,45 +193,46 @@ function buildBeforePrompt(prompt, title) {
 }
 
 function buildAfterPrompt(prompt, title) {
-  return `Use the input before photo as the source image. Apply this PromptStan prompt as the final edit while preserving the same person's identity, realistic human anatomy, pose consistency, and a natural photo look. Title: ${title}. Prompt: ${prompt.prompt_text || title}. High quality, realistic, sharp face details, natural lighting, no text, no watermark.`;
+  return `Edit input image 0 into the final PromptStan result. Keep the same person or people recognizable, preserve facial identity and realistic human anatomy, and keep the pose coherent. Apply this edit: ${prompt.prompt_text || title}. Title: ${title}. Produce a high-quality realistic photograph with sharp face details, natural lighting, no text, and no watermark.`;
 }
 
-async function callWorkersAITextToImage(env, prompt) {
+async function callWorkersAIFlux2(env, prompt, imageSource = null, options = {}) {
   if (!env.AI) throw new Error('Workers AI binding is missing');
 
+  const form = new FormData();
+  form.append('prompt', prompt);
+  form.append('width', String(options.width || 768));
+  form.append('height', String(options.height || 768));
+
+  const guidance = clampNumber(env.CLOUDFLARE_IMAGE_GUIDANCE, 4, 1, 10);
+  form.append('guidance', String(guidance));
+
+  if (imageSource?.buffer) {
+    const contentType = normalizeImageContentType(imageSource.contentType);
+    const extension = extensionFromContentType(contentType);
+    const imageBlob = new Blob([imageSource.buffer], { type: contentType });
+    form.append('input_image_0', imageBlob, `before.${extension}`);
+  }
+
+  const formResponse = new Response(form);
+  const formContentType = formResponse.headers.get('content-type');
+  if (!formResponse.body || !formContentType) throw new Error('Could not serialize FLUX.2 multipart input');
+
   const result = await env.AI.run(
-    env.CLOUDFLARE_TEXT_IMAGE_MODEL || DEFAULT_WORKERS_AI_TEXT_MODEL,
+    env.CLOUDFLARE_IMAGE_MODEL || DEFAULT_WORKERS_AI_IMAGE_MODEL,
     {
-      prompt,
-      steps: clampInteger(env.CLOUDFLARE_TEXT_IMAGE_STEPS, 4, 1, 8)
+      multipart: {
+        body: formResponse.body,
+        contentType: formContentType
+      }
     }
   );
 
-  return workersAIResultToArrayBuffer(result);
-}
-
-async function callWorkersAIImageEdit(env, prompt, imageSource) {
-  if (!env.AI) throw new Error('Workers AI binding is missing');
-  if (!imageSource?.buffer) throw new Error('Workers AI image edit requires a source image');
-
-  const imageBytes = Array.from(new Uint8Array(imageSource.buffer));
-  if (!imageBytes.length) throw new Error('Workers AI image edit received an empty source image');
-
-  const result = await env.AI.run(
-    env.CLOUDFLARE_EDIT_IMAGE_MODEL || DEFAULT_WORKERS_AI_EDIT_MODEL,
-    {
-      prompt,
-      negative_prompt: 'text, watermark, logo, distorted face, deformed hands, extra fingers, duplicate body parts, blurry, low quality',
-      image: imageBytes,
-      strength: clampNumber(env.CLOUDFLARE_IMAGE_STRENGTH, 0.68, 0.05, 1),
-      num_steps: clampInteger(env.CLOUDFLARE_IMAGE_STEPS, 16, 1, 20),
-      guidance: clampNumber(env.CLOUDFLARE_IMAGE_GUIDANCE, 7.5, 1, 20),
-      width: clampInteger(env.CLOUDFLARE_IMAGE_WIDTH, 768, 256, 1024),
-      height: clampInteger(env.CLOUDFLARE_IMAGE_HEIGHT, 768, 256, 1024)
-    }
-  );
-
-  return workersAIResultToArrayBuffer(result);
+  const buffer = await workersAIResultToArrayBuffer(result);
+  return {
+    buffer,
+    contentType: detectImageContentType(buffer, 'image/jpeg')
+  };
 }
 
 async function workersAIResultToArrayBuffer(result) {
@@ -314,17 +320,19 @@ async function loadImageSource(value, env = {}) {
 
     const headers = new Headers();
     object.writeHttpMetadata(headers);
+    const buffer = await object.arrayBuffer();
     return {
-      buffer: await object.arrayBuffer(),
-      contentType: normalizeImageContentType(headers.get('content-type'))
+      buffer,
+      contentType: detectImageContentType(buffer, normalizeImageContentType(headers.get('content-type')))
     };
   }
 
   const response = await fetch(toAbsoluteUrl(imageUrl, env));
   if (!response.ok) throw new Error(`Could not load image: ${response.status}`);
+  const buffer = await response.arrayBuffer();
   return {
-    buffer: await response.arrayBuffer(),
-    contentType: normalizeImageContentType(response.headers.get('content-type'))
+    buffer,
+    contentType: detectImageContentType(buffer, normalizeImageContentType(response.headers.get('content-type')))
   };
 }
 
@@ -342,6 +350,32 @@ function toAbsoluteUrl(value, env = {}) {
   if (/^https?:\/\//i.test(url)) return url;
   const base = String(env.PUBLIC_BASE_URL || DEFAULT_PUBLIC_BASE_URL).replace(/\/$/, '');
   return `${base}${url.startsWith('/') ? '' : '/'}${url}`;
+}
+
+function detectImageContentType(buffer, fallback = 'image/png') {
+  const bytes = new Uint8Array(buffer.slice(0, 16));
+
+  if (bytes.length >= 8
+    && bytes[0] === 0x89
+    && bytes[1] === 0x50
+    && bytes[2] === 0x4e
+    && bytes[3] === 0x47) return 'image/png';
+
+  if (bytes.length >= 3
+    && bytes[0] === 0xff
+    && bytes[1] === 0xd8
+    && bytes[2] === 0xff) return 'image/jpeg';
+
+  if (bytes.length >= 12
+    && String.fromCharCode(...bytes.slice(0, 4)) === 'RIFF'
+    && String.fromCharCode(...bytes.slice(8, 12)) === 'WEBP') return 'image/webp';
+
+  if (bytes.length >= 6) {
+    const signature = String.fromCharCode(...bytes.slice(0, 6));
+    if (signature === 'GIF87a' || signature === 'GIF89a') return 'image/gif';
+  }
+
+  return normalizeImageContentType(fallback);
 }
 
 function normalizeImageContentType(value) {
