@@ -82,12 +82,18 @@ async function imageJobHealth(env, ctx) {
       image_error: sanitizeDiagnosticError(row.image_error)
     }));
 
-    const knownFailure = recent.find((row) => (
-      row.image_status === 'failed'
-      && !row.has_before
-      && !row.has_after
-      && String(row.image_error).includes('input tensor `image` is not present in the model')
-    ));
+    const knownFailure = recent.find((row) => {
+      const errorText = String(row.image_error || '');
+      return (
+        row.image_status === 'failed'
+        && !row.has_before
+        && !row.has_after
+        && (
+          errorText.includes('input tensor `image` is not present in the model')
+          || errorText.includes('Input prompt contains NSFW content')
+        )
+      );
+    });
 
     let repairQueued = false;
     if (knownFailure && getConfiguredImageProvider(env) === 'workers-ai') {
