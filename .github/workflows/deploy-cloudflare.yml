@@ -63,7 +63,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          curl -fsSL "$LIVE_BASE/api/health" | grep -F '"ok":true'
+          health="$(curl -fsSL "$LIVE_BASE/api/health")"
+          printf '%s' "$health" | grep -F '"ok":true'
+          printf '%s' "$health" | grep -E '"image_provider":"(workers-ai|openai)"'
 
           status="$(curl -sS -o /tmp/admin-system.json -w '%{http_code}' "$LIVE_BASE/api/admin/system")"
           test "$status" = "401"
