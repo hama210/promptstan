@@ -7,7 +7,7 @@ import {
   getPromptById
 } from './auto-images.js';
 
-const IMAGE_PIPELINE_VERSION = 'flux-sdxl-safe-v3';
+const IMAGE_PIPELINE_VERSION = 'flux-sdxl-bytes-v4';
 const JSON_HEADERS = {
   'content-type': 'application/json; charset=utf-8',
   'access-control-allow-origin': '*',
@@ -88,7 +88,6 @@ async function imageJobHealth(env, ctx) {
       const errorText = String(row.image_error || '');
       return (
         row.image_status === 'failed'
-        && !row.has_before
         && !row.has_after
         && (
           errorText.includes('input tensor `image` is not present in the model')
