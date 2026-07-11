@@ -7,7 +7,7 @@ import {
   getPromptById
 } from './auto-images.js';
 
-const IMAGE_PIPELINE_VERSION = 'flux-sdxl-r2-v5';
+const IMAGE_PIPELINE_VERSION = 'flux-img2img-r2-v6';
 const JSON_HEADERS = {
   'content-type': 'application/json; charset=utf-8',
   'access-control-allow-origin': '*',
@@ -93,6 +93,7 @@ async function imageJobHealth(env, ctx) {
           errorText.includes('input tensor `image` is not present in the model')
           || errorText.includes('Input prompt contains NSFW content')
           || errorText.includes('Could not load image: 404')
+          || errorText.includes('Could not load R2 image:')
         )
       );
     });
