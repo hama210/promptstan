@@ -18,10 +18,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Read live image health
+      - name: Wait for live image repair
         run: |
-          curl -fsS --retry 5 --retry-delay 3 https://promptstan-api.hhhh46529.workers.dev/api/health/images > live-image-health.json
-          cat live-image-health.json
+          set -euo pipefail
+
+          for attempt in $(seq 1 24); do
+            body="$(curl -fsS --retry 3 --retry-delay 2 https://promptstan-api.hhhh46529.workers.dev/api/health/images)"
+            printf '%s\n' "$body" | tee live-image-health.json
+
+            if printf '%s' "$body" | grep -F '"image_status":"ready"' >/dev/null \
+              && printf '%s' "$body" | grep -F '"has_before":1' >/dev/null \
+              && printf '%s' "$body" | grep -F '"has_after":1' >/dev/null; then
+              echo 'PromptStan Before/After images are ready.'
+              exit 0
+            fi
+
+            sleep 10
+          done
+
+          echo '::warning::The image job is not ready yet; preserving the latest health response.'
 
       - name: Inspect prompt table schema
         id: schema
