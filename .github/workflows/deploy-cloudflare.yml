@@ -47,19 +47,17 @@ jobs:
           wranglerVersion: "4"
           command: whoami
 
-      - name: Verify ADMIN_TOKEN Worker secret
+      - name: Check ADMIN_TOKEN Worker secret
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: npx wrangler secret list | grep -F 'ADMIN_TOKEN'
-
-      - name: Verify OPENAI_API_KEY Worker secret
-        if: always()
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: npx wrangler secret list | grep -F 'OPENAI_API_KEY'
+        run: |
+          if npx wrangler secret list | grep -F 'ADMIN_TOKEN'; then
+            echo 'ADMIN_TOKEN is configured.'
+          else
+            echo '::warning::ADMIN_TOKEN is not configured. The public site works, but admin write actions remain locked.'
+          fi
 
       - name: Verify live PromptStan deployment
-        if: always()
         env:
           LIVE_BASE: https://promptstan-api.hhhh46529.workers.dev
         run: |
@@ -111,3 +109,10 @@ jobs:
           wranglerVersion: "4"
           preCommands: wrangler d1 migrations apply promptstan-db --remote
           command: deploy --keep-vars
+
+      - name: Verify deployed image provider
+        env:
+          LIVE_BASE: https://promptstan-api.hhhh46529.workers.dev
+        run: |
+          set -euo pipefail
+          curl -fsSL "$LIVE_BASE/api/health" | grep -E '"image_provider":"(workers-ai|openai)"'
