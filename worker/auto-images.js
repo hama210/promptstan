@@ -82,6 +82,7 @@ export async function ensurePromptImages(env, prompt, options = {}) {
       const beforeKey = `generated/${safeKey(prompt.slug || prompt.id)}-before.${beforeExtension}`;
       await storeImage(env, beforeKey, beforeSource.buffer, beforeSource.contentType);
       beforeImageUrl = `/uploads/${beforeKey}`;
+      await persistBeforeImage(env, prompt.id, beforeImageUrl);
     }
 
     let afterImageUrl = prompt.after_image_url || null;
@@ -118,6 +119,14 @@ async function claimImageJob(env, promptId) {
       )
   `).bind(promptId).run();
   return Number(result.meta?.changes || 0) > 0;
+}
+
+async function persistBeforeImage(env, promptId, beforeImageUrl) {
+  await env.DB.prepare(`
+    UPDATE prompts
+    SET before_image_url = ?, image_status = 'generating', image_error = NULL, updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).bind(beforeImageUrl, promptId).run();
 }
 
 async function generateBeforeImageSource(env, prompt, title) {
@@ -200,12 +209,15 @@ async function callWorkersAIImageEdit(env, prompt, imageSource) {
   if (!env.AI) throw new Error('Workers AI binding is missing');
   if (!imageSource?.buffer) throw new Error('Workers AI image edit requires a source image');
 
+  const imageBytes = Array.from(new Uint8Array(imageSource.buffer));
+  if (!imageBytes.length) throw new Error('Workers AI image edit received an empty source image');
+
   const result = await env.AI.run(
     env.CLOUDFLARE_EDIT_IMAGE_MODEL || DEFAULT_WORKERS_AI_EDIT_MODEL,
     {
       prompt,
       negative_prompt: 'text, watermark, logo, distorted face, deformed hands, extra fingers, duplicate body parts, blurry, low quality',
-      image_b64: arrayBufferToBase64(imageSource.buffer),
+      image: imageBytes,
       strength: clampNumber(env.CLOUDFLARE_IMAGE_STRENGTH, 0.68, 0.05, 1),
       num_steps: clampInteger(env.CLOUDFLARE_IMAGE_STEPS, 16, 1, 20),
       guidance: clampNumber(env.CLOUDFLARE_IMAGE_GUIDANCE, 7.5, 1, 20),
@@ -329,16 +341,6 @@ function extensionFromContentType(contentType) {
   if (contentType === 'image/webp') return 'webp';
   if (contentType === 'image/gif') return 'gif';
   return 'png';
-}
-
-function arrayBufferToBase64(buffer) {
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  const chunkSize = 0x8000;
-  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
-  }
-  return btoa(binary);
 }
 
 function base64ToArrayBuffer(base64) {
