@@ -118,29 +118,3 @@ jobs:
         run: |
           set -euo pipefail
           curl -fsSL "$LIVE_BASE/api/health" | grep -E '"image_provider":"(workers-ai|openai)"'
-
-      - name: Repair the known failed image job
-        env:
-          LIVE_BASE: https://promptstan-api.hhhh46529.workers.dev
-        run: |
-          set -euo pipefail
-          curl -fsSL "$LIVE_BASE/api/health/images" | tee /tmp/image-health-start.json
-
-          for attempt in $(seq 1 18); do
-            sleep 10
-            body="$(curl -fsSL "$LIVE_BASE/api/health/images")"
-            printf '%s\n' "$body"
-
-            if printf '%s' "$body" | grep -F '"image_status":"ready"' >/dev/null; then
-              echo 'The failed PromptStan image job is repaired.'
-              exit 0
-            fi
-
-            if ! printf '%s' "$body" | grep -F 'input tensor `image` is not present in the model' >/dev/null \
-              && ! printf '%s' "$body" | grep -F '"image_status":"generating"' >/dev/null; then
-              echo 'The old model-input failure is no longer present.'
-              exit 0
-            fi
-          done
-
-          echo '::warning::The repair is still processing; it can be checked from the admin panel.'
