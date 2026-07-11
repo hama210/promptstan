@@ -46,6 +46,10 @@ export default {
       return adminOnly(request, env, (req, bindings) => adminUpdatePrompt(req, bindings, updateMatch[1], ctx));
     }
 
+    if (url.pathname === '/api/admin/prompts' && request.method === 'POST') {
+      return app.fetch(request, env, {});
+    }
+
     return app.fetch(request, env, ctx);
   },
 
