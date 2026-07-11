@@ -7,6 +7,7 @@ import {
   getPromptById
 } from './auto-images.js';
 
+const IMAGE_PIPELINE_VERSION = 'flux-sdxl-safe-v3';
 const JSON_HEADERS = {
   'content-type': 'application/json; charset=utf-8',
   'access-control-allow-origin': '*',
@@ -22,7 +23,8 @@ export default {
       return json({
         ok: true,
         service: 'promptstan-api',
-        image_provider: getConfiguredImageProvider(env) || 'missing'
+        image_provider: getConfiguredImageProvider(env) || 'missing',
+        image_pipeline: IMAGE_PIPELINE_VERSION
       });
     }
 
@@ -109,6 +111,7 @@ async function imageJobHealth(env, ctx) {
     return json({
       ok: true,
       image_provider: getConfiguredImageProvider(env) || 'missing',
+      image_pipeline: IMAGE_PIPELINE_VERSION,
       repair_queued: repairQueued,
       totals: totalsResult.results || [],
       recent
@@ -116,6 +119,7 @@ async function imageJobHealth(env, ctx) {
   } catch (error) {
     return json({
       ok: false,
+      image_pipeline: IMAGE_PIPELINE_VERSION,
       error: sanitizeDiagnosticError(error?.message || error)
     }, 500, { 'cache-control': 'no-store' });
   }
@@ -140,6 +144,7 @@ async function adminSystemStatus(request, env) {
     workers_ai: Boolean(env.AI),
     openai: Boolean(env.OPENAI_API_KEY),
     image_provider: imageProvider,
+    image_pipeline: IMAGE_PIPELINE_VERSION,
     admin_token: Boolean(env.ADMIN_TOKEN),
     daily_post_enabled: env.DAILY_POST_ENABLED !== 'false'
   };
