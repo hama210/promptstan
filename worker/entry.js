@@ -7,7 +7,7 @@ import {
   getPromptById
 } from './auto-images.js';
 
-const IMAGE_PIPELINE_VERSION = 'flux-sdxl-safe-v3';
+const IMAGE_PIPELINE_VERSION = 'flux-sdxl-byte-array-v4';
 const JSON_HEADERS = {
   'content-type': 'application/json; charset=utf-8',
   'access-control-allow-origin': '*',
