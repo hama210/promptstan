@@ -1,7 +1,14 @@
 const OPENAI_IMAGES_URL = 'https://api.openai.com/v1/images/generations';
 const OPENAI_EDITS_URL = 'https://api.openai.com/v1/images/edits';
-const DEFAULT_IMAGE_MODEL = 'gpt-image-1';
+const DEFAULT_OPENAI_IMAGE_MODEL = 'gpt-image-1';
+const DEFAULT_WORKERS_AI_IMAGE_MODEL = '@cf/stabilityai/stable-diffusion-xl-base-1.0';
 const DEFAULT_PUBLIC_BASE_URL = 'https://promptstan-api.hhhh46529.workers.dev';
+
+export function getConfiguredImageProvider(env) {
+  if (env.OPENAI_API_KEY) return 'openai';
+  if (env.AI) return 'workers-ai';
+  return null;
+}
 
 export async function ensurePromptImageColumns(env) {
   const columns = [
@@ -49,6 +56,13 @@ export async function ensurePromptImages(env, prompt, options = {}) {
     return { ok: false, error: message };
   }
 
+  const provider = getConfiguredImageProvider(env);
+  if (!provider) {
+    const message = 'No image provider is configured. Connect Workers AI or set OPENAI_API_KEY.';
+    await setImageStatus(env, prompt.id, 'failed', message);
+    return { ok: false, error: message };
+  }
+
   const claimed = await claimImageJob(env, prompt.id);
   if (!claimed) {
     return { ok: true, skipped: true, reason: 'Image generation is already running' };
@@ -85,11 +99,11 @@ export async function ensurePromptImages(env, prompt, options = {}) {
       WHERE id = ?
     `).bind(beforeImageUrl, afterImageUrl, 'ready', prompt.id).run();
 
-    return { ok: true, before_image_url: beforeImageUrl, after_image_url: afterImageUrl };
+    return { ok: true, provider, before_image_url: beforeImageUrl, after_image_url: afterImageUrl };
   } catch (error) {
     const message = String(error?.message || error || 'Image generation failed');
     await setImageStatus(env, prompt.id, 'failed', message);
-    return { ok: false, error: message };
+    return { ok: false, provider, error: message };
   }
 }
 
@@ -108,11 +122,18 @@ async function claimImageJob(env, promptId) {
 }
 
 async function generateBeforeImage(env, prompt, title) {
-  return callOpenAIImageGeneration(env, buildBeforePrompt(prompt, title));
+  const beforePrompt = buildBeforePrompt(prompt, title);
+  if (env.OPENAI_API_KEY) return callOpenAIImageGeneration(env, beforePrompt);
+  return callWorkersAIImage(env, beforePrompt);
 }
 
 async function generateAfterImage(env, prompt, title, beforeSource) {
   const editPrompt = buildAfterPrompt(prompt, title);
+
+  if (!env.OPENAI_API_KEY) {
+    return callWorkersAIImage(env, editPrompt, beforeSource);
+  }
+
   try {
     return await callOpenAIImageEdit(env, beforeSource, editPrompt);
   } catch (editError) {
@@ -149,18 +170,62 @@ function buildBeforePrompt(prompt, title) {
 }
 
 function buildAfterPrompt(prompt, title) {
-  return `Use the input before photo as the source image. Apply this PromptStan prompt as the final edit while preserving the same person's identity, realistic human anatomy, and a natural photo look. Title: ${title}. Prompt: ${prompt.prompt_text || title}. High quality, realistic, sharp face details, natural lighting, no text, no watermark.`;
+  return `Use the input before photo as the source image. Apply this PromptStan prompt as the final edit while preserving the same person's identity, realistic human anatomy, pose consistency, and a natural photo look. Title: ${title}. Prompt: ${prompt.prompt_text || title}. High quality, realistic, sharp face details, natural lighting, no text, no watermark.`;
+}
+
+async function callWorkersAIImage(env, prompt, imageSource = null) {
+  if (!env.AI) throw new Error('Workers AI binding is missing');
+
+  const payload = {
+    prompt,
+    negative_prompt: 'text, watermark, logo, distorted face, deformed hands, extra fingers, duplicate body parts, blurry, low quality',
+    num_steps: clampInteger(env.CLOUDFLARE_IMAGE_STEPS, 16, 1, 20),
+    guidance: clampNumber(env.CLOUDFLARE_IMAGE_GUIDANCE, 7.5, 1, 20),
+    width: clampInteger(env.CLOUDFLARE_IMAGE_WIDTH, 768, 256, 1024),
+    height: clampInteger(env.CLOUDFLARE_IMAGE_HEIGHT, 768, 256, 1024)
+  };
+
+  if (imageSource?.buffer) {
+    payload.image_b64 = arrayBufferToBase64(imageSource.buffer);
+    payload.strength = clampNumber(env.CLOUDFLARE_IMAGE_STRENGTH, 0.68, 0.05, 1);
+  }
+
+  const result = await env.AI.run(
+    env.CLOUDFLARE_IMAGE_MODEL || DEFAULT_WORKERS_AI_IMAGE_MODEL,
+    payload
+  );
+
+  return workersAIResultToArrayBuffer(result);
+}
+
+async function workersAIResultToArrayBuffer(result) {
+  if (!result) throw new Error('Workers AI did not return image data');
+
+  if (result instanceof ArrayBuffer) return result;
+  if (ArrayBuffer.isView(result)) {
+    return result.buffer.slice(result.byteOffset, result.byteOffset + result.byteLength);
+  }
+  if (result instanceof Response) return result.arrayBuffer();
+  if (result instanceof ReadableStream) return new Response(result).arrayBuffer();
+  if (result?.image) return base64ToArrayBuffer(result.image);
+  if (result?.body) return new Response(result.body).arrayBuffer();
+  if (typeof result === 'string') {
+    const base64 = result.includes(',') ? result.split(',').pop() : result;
+    return base64ToArrayBuffer(base64);
+  }
+
+  throw new Error('Workers AI returned an unsupported image response');
 }
 
 async function callOpenAIImageGeneration(env, prompt) {
   const response = await fetch(OPENAI_IMAGES_URL, {
     method: 'POST',
     headers: {
-      authorization: `Bearer ${getOpenAIKey(env)}`,
+      authorization: `Bearer ${env.OPENAI_API_KEY}`,
       'content-type': 'application/json'
     },
     body: JSON.stringify({
-      model: env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL,
+      model: env.OPENAI_IMAGE_MODEL || DEFAULT_OPENAI_IMAGE_MODEL,
       prompt,
       size: env.OPENAI_IMAGE_SIZE || '1024x1024',
       n: 1
@@ -173,7 +238,7 @@ async function callOpenAIImageGeneration(env, prompt) {
 async function callOpenAIImageEdit(env, imageSource, prompt) {
   const contentType = normalizeImageContentType(imageSource.contentType);
   const form = new FormData();
-  form.append('model', env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL);
+  form.append('model', env.OPENAI_IMAGE_MODEL || DEFAULT_OPENAI_IMAGE_MODEL);
   form.append('prompt', prompt);
   form.append('size', env.OPENAI_IMAGE_SIZE || '1024x1024');
   form.append('n', '1');
@@ -181,7 +246,7 @@ async function callOpenAIImageEdit(env, imageSource, prompt) {
 
   const response = await fetch(OPENAI_EDITS_URL, {
     method: 'POST',
-    headers: { authorization: `Bearer ${getOpenAIKey(env)}` },
+    headers: { authorization: `Bearer ${env.OPENAI_API_KEY}` },
     body: form
   });
 
@@ -247,6 +312,16 @@ function extensionFromContentType(contentType) {
   return 'png';
 }
 
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+  }
+  return btoa(binary);
+}
+
 function base64ToArrayBuffer(base64) {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
@@ -254,9 +329,14 @@ function base64ToArrayBuffer(base64) {
   return bytes.buffer;
 }
 
-function getOpenAIKey(env) {
-  if (!env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY Cloudflare secret is missing');
-  return env.OPENAI_API_KEY;
+function clampNumber(value, fallback, minimum, maximum) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.min(maximum, Math.max(minimum, number));
+}
+
+function clampInteger(value, fallback, minimum, maximum) {
+  return Math.round(clampNumber(value, fallback, minimum, maximum));
 }
 
 async function setImageStatus(env, promptId, status, error = null) {
