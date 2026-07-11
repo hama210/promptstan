@@ -1,13 +1,15 @@
+import { ensurePromptImageColumns, getPromptById, ensurePromptImages } from './auto-images.js';
+
 export async function adminListPrompts(env) {
-  await ensureImageColumns(env);
+  await ensurePromptImageColumns(env);
   const result = await env.DB.prepare(
     'SELECT prompts.*, categories.slug AS category_slug, categories.name_ku AS category_name FROM prompts JOIN categories ON prompts.category_id = categories.id ORDER BY prompts.id DESC LIMIT 200'
   ).all();
   return json(result.results || []);
 }
 
-export async function adminUpdatePrompt(request, env, id) {
-  await ensureImageColumns(env);
+export async function adminUpdatePrompt(request, env, id, ctx) {
+  await ensurePromptImageColumns(env);
   const body = await request.json();
   const category = await getOrCreateCategory(env, body.category_slug || 'person-edit');
   const previewImageUrl = cleanImageUrl(body.preview_image_url);
@@ -15,7 +17,7 @@ export async function adminUpdatePrompt(request, env, id) {
   const afterImageUrl = cleanImageUrl(body.after_image_url);
   const imageStatus = beforeImageUrl && afterImageUrl ? 'ready' : 'pending';
 
-  await env.DB.prepare(
+  const updateResult = await env.DB.prepare(
     'UPDATE prompts SET category_id = ?, title_ku = ?, title_en = ?, title_ar = ?, description_ku = ?, description_en = ?, description_ar = ?, prompt_text = ?, negative_prompt = ?, preview_image_url = ?, before_image_url = ?, after_image_url = ?, image_status = ?, image_error = NULL, difficulty = ?, rating = ?, is_featured = ?, is_trending = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
   ).bind(
     category.id,
@@ -38,28 +40,67 @@ export async function adminUpdatePrompt(request, env, id) {
     id
   ).run();
 
+  if (!Number(updateResult.meta?.changes || 0)) return json({ error: 'Prompt not found' }, 404);
+
   await env.DB.prepare('DELETE FROM prompt_tags WHERE prompt_id = ?').bind(id).run();
   await attachTags(env, id, body.tags || []);
-  return json({ ok: true, id, preview_image_url: previewImageUrl, before_image_url: beforeImageUrl, after_image_url: afterImageUrl, image_status: imageStatus });
+
+  if (!beforeImageUrl || !afterImageUrl) {
+    const prompt = await getPromptById(env, id);
+    const imageTask = ensurePromptImages(env, prompt);
+    if (ctx?.waitUntil) ctx.waitUntil(imageTask);
+    else await imageTask;
+  }
+
+  return json({
+    ok: true,
+    id,
+    preview_image_url: previewImageUrl,
+    before_image_url: beforeImageUrl,
+    after_image_url: afterImageUrl,
+    image_status: imageStatus
+  });
+}
+
+export async function adminRetryPromptImages(env, id, ctx) {
+  const prompt = await getPromptById(env, id);
+  if (!prompt) return json({ error: 'Prompt not found' }, 404);
+
+  const imageTask = ensurePromptImages(env, prompt, { force: true });
+  if (ctx?.waitUntil) {
+    ctx.waitUntil(imageTask);
+    return json({ ok: true, id, image_status: 'generating' }, 202);
+  }
+
+  const result = await imageTask;
+  return json({ id, ...result }, result.ok ? 200 : 500);
 }
 
 export async function adminDeletePrompt(env, id) {
+  const prompt = await getPromptById(env, id);
+  if (!prompt) return json({ error: 'Prompt not found' }, 404);
+
+  await deleteManagedImage(env, prompt.before_image_url);
+  await deleteManagedImage(env, prompt.after_image_url);
+  await deleteManagedImage(env, prompt.preview_image_url);
   await env.DB.prepare('DELETE FROM prompt_tags WHERE prompt_id = ?').bind(id).run();
   await env.DB.prepare('DELETE FROM prompt_collections WHERE prompt_id = ?').bind(id).run();
   await env.DB.prepare('DELETE FROM prompts WHERE id = ?').bind(id).run();
   return json({ ok: true, id });
 }
 
-async function ensureImageColumns(env) {
-  for (const sql of [
-    'ALTER TABLE prompts ADD COLUMN before_image_url TEXT',
-    'ALTER TABLE prompts ADD COLUMN after_image_url TEXT',
-    'ALTER TABLE prompts ADD COLUMN image_status TEXT DEFAULT "pending"',
-    'ALTER TABLE prompts ADD COLUMN image_error TEXT'
-  ]) {
-    try {
-      await env.DB.prepare(sql).run();
-    } catch {}
+async function deleteManagedImage(env, value) {
+  if (!env.PROMPT_IMAGES || !value) return;
+  const image = String(value);
+  const marker = '/uploads/';
+  const markerIndex = image.indexOf(marker);
+  if (markerIndex < 0) return;
+  const key = decodeURIComponent(image.slice(markerIndex + marker.length));
+  if (!key) return;
+  try {
+    await env.PROMPT_IMAGES.delete(key);
+  } catch (error) {
+    console.warn(JSON.stringify({ event: 'prompt_image_delete_failed', key, error: String(error?.message || error) }));
   }
 }
 

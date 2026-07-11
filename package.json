@@ -8,9 +8,12 @@
     "build": "vite build",
     "preview": "vite preview",
     "worker:dev": "wrangler dev",
-    "worker:deploy": "wrangler deploy",
+    "worker:check": "npm run build && wrangler deploy --dry-run",
+    "worker:deploy": "npm run build && wrangler deploy --keep-vars",
     "db:schema": "wrangler d1 execute promptstan-db --file=database/schema.sql",
-    "db:seed": "wrangler d1 execute promptstan-db --file=database/seed.sql"
+    "db:seed": "wrangler d1 execute promptstan-db --file=database/seed.sql",
+    "db:migrate:local": "wrangler d1 migrations apply promptstan-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply promptstan-db --remote"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",

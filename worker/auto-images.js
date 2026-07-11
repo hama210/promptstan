@@ -1,6 +1,7 @@
 const OPENAI_IMAGES_URL = 'https://api.openai.com/v1/images/generations';
 const OPENAI_EDITS_URL = 'https://api.openai.com/v1/images/edits';
 const DEFAULT_IMAGE_MODEL = 'gpt-image-1';
+const DEFAULT_PUBLIC_BASE_URL = 'https://promptstan-api.hhhh46529.workers.dev';
 
 export async function ensurePromptImageColumns(env) {
   const columns = [
@@ -27,11 +28,12 @@ export async function getPromptById(env, id) {
   `).bind(id).first();
 }
 
-export async function ensurePromptImages(env, prompt) {
+export async function ensurePromptImages(env, prompt, options = {}) {
   if (!prompt?.id) return { ok: false, error: 'Prompt not found' };
   await ensurePromptImageColumns(env);
 
-  if (prompt.before_image_url && prompt.after_image_url) {
+  const force = Boolean(options.force);
+  if (!force && prompt.before_image_url && prompt.after_image_url) {
     await setImageStatus(env, prompt.id, 'ready', null);
     return {
       ok: true,
@@ -41,38 +43,49 @@ export async function ensurePromptImages(env, prompt) {
     };
   }
 
-  await setImageStatus(env, prompt.id, 'pending', null);
+  if (!env.PROMPT_IMAGES) {
+    const message = 'PROMPT_IMAGES R2 binding is missing';
+    await setImageStatus(env, prompt.id, 'failed', message);
+    return { ok: false, error: message };
+  }
+
+  const claimed = await claimImageJob(env, prompt.id);
+  if (!claimed) {
+    return { ok: true, skipped: true, reason: 'Image generation is already running' };
+  }
 
   try {
     const title = prompt.title_en || prompt.title_ku || prompt.slug || 'Person Edit';
-    const beforeBuffer = prompt.before_image_url
-      ? await loadImageBuffer(prompt.before_image_url)
-      : await generateBeforeImage(env, prompt, title);
+    let beforeImageUrl = prompt.before_image_url || null;
+    let beforeSource;
 
-    const afterBuffer = prompt.after_image_url
-      ? await loadImageBuffer(prompt.after_image_url)
-      : await generateAfterImage(env, prompt, title, beforeBuffer);
+    if (beforeImageUrl) {
+      beforeSource = await loadImageSource(beforeImageUrl, env);
+    } else {
+      beforeSource = {
+        buffer: await generateBeforeImage(env, prompt, title),
+        contentType: 'image/png'
+      };
+      const beforeKey = `generated/${safeKey(prompt.slug || prompt.id)}-before.png`;
+      await storeImage(env, beforeKey, beforeSource.buffer, beforeSource.contentType);
+      beforeImageUrl = `/uploads/${beforeKey}`;
+    }
 
-    const beforeKey = `generated/${safeKey(prompt.slug || prompt.id)}-before.png`;
-    const afterKey = `generated/${safeKey(prompt.slug || prompt.id)}-after.png`;
-
-    await env.PROMPT_IMAGES.put(beforeKey, beforeBuffer, {
-      httpMetadata: { contentType: 'image/png' }
-    });
-    await env.PROMPT_IMAGES.put(afterKey, afterBuffer, {
-      httpMetadata: { contentType: 'image/png' }
-    });
-
-    const before_image_url = `/uploads/${beforeKey}`;
-    const after_image_url = `/uploads/${afterKey}`;
+    let afterImageUrl = prompt.after_image_url || null;
+    if (force || !afterImageUrl) {
+      const afterBuffer = await generateAfterImage(env, prompt, title, beforeSource);
+      const afterKey = `generated/${safeKey(prompt.slug || prompt.id)}-after.png`;
+      await storeImage(env, afterKey, afterBuffer, 'image/png');
+      afterImageUrl = `/uploads/${afterKey}`;
+    }
 
     await env.DB.prepare(`
       UPDATE prompts
       SET before_image_url = ?, after_image_url = ?, image_status = ?, image_error = NULL, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).bind(before_image_url, after_image_url, 'ready', prompt.id).run();
+    `).bind(beforeImageUrl, afterImageUrl, 'ready', prompt.id).run();
 
-    return { ok: true, before_image_url, after_image_url };
+    return { ok: true, before_image_url: beforeImageUrl, after_image_url: afterImageUrl };
   } catch (error) {
     const message = String(error?.message || error || 'Image generation failed');
     await setImageStatus(env, prompt.id, 'failed', message);
@@ -80,18 +93,31 @@ export async function ensurePromptImages(env, prompt) {
   }
 }
 
-async function generateBeforeImage(env, prompt, title) {
-  const beforePrompt = buildBeforePrompt(prompt, title);
-  return callOpenAIImageGeneration(env, beforePrompt);
+async function claimImageJob(env, promptId) {
+  const result = await env.DB.prepare(`
+    UPDATE prompts
+    SET image_status = 'generating', image_error = NULL, updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+      AND (
+        image_status IS NULL
+        OR image_status != 'generating'
+        OR updated_at < datetime('now', '-10 minutes')
+      )
+  `).bind(promptId).run();
+  return Number(result.meta?.changes || 0) > 0;
 }
 
-async function generateAfterImage(env, prompt, title, beforeBuffer) {
+async function generateBeforeImage(env, prompt, title) {
+  return callOpenAIImageGeneration(env, buildBeforePrompt(prompt, title));
+}
+
+async function generateAfterImage(env, prompt, title, beforeSource) {
   const editPrompt = buildAfterPrompt(prompt, title);
   try {
-    return await callOpenAIImageEdit(env, beforeBuffer, editPrompt);
-  } catch {
-    const fallbackPrompt = `${editPrompt}\n\nCreate the final edited result as a realistic high quality photo.`;
-    return callOpenAIImageGeneration(env, fallbackPrompt);
+    return await callOpenAIImageEdit(env, beforeSource, editPrompt);
+  } catch (editError) {
+    console.warn(JSON.stringify({ event: 'prompt_image_edit_fallback', prompt_id: prompt.id, error: String(editError?.message || editError) }));
+    return callOpenAIImageGeneration(env, `${editPrompt}\n\nCreate the final edited result as a realistic high quality photo.`);
   }
 }
 
@@ -100,19 +126,19 @@ function buildBeforePrompt(prompt, title) {
   const text = `${title} ${prompt.prompt_text || ''}`.toLowerCase();
 
   if (category.includes('couple') || text.includes('two people') || text.includes('couple')) {
-    return 'Realistic simple unedited casual photo of two people standing together, neutral clothes, natural daylight, plain background, phone camera look, no cinematic effects, no rain, no luxury styling.';
+    return 'Realistic simple unedited casual photo of two adult people standing together, neutral clothes, natural daylight, plain background, phone camera look, no cinematic effects, no rain, no luxury styling.';
   }
 
   if (category.includes('kurdish') || text.includes('kurdish')) {
-    return 'Realistic simple unedited photo of one Kurdish person in normal everyday clothes, natural daylight, plain background, phone camera look, before transformation.';
+    return 'Realistic simple unedited photo of one Kurdish adult person in normal everyday clothes, natural daylight, plain background, phone camera look, before transformation.';
   }
 
   if (category.includes('outfit') || text.includes('suit') || text.includes('clothes')) {
-    return 'Realistic simple unedited full body photo of one person wearing casual clothes, natural pose, plain background, phone camera look, before outfit transformation.';
+    return 'Realistic simple unedited full body photo of one adult person wearing casual clothes, natural pose, plain background, phone camera look, before outfit transformation.';
   }
 
   if (category.includes('movie') || text.includes('cinematic') || text.includes('movie')) {
-    return 'Realistic simple unedited portrait photo of one person, neutral expression, normal clothes, natural daylight, plain background, phone camera look, before cinematic transformation.';
+    return 'Realistic simple unedited portrait photo of one adult person, neutral expression, normal clothes, natural daylight, plain background, phone camera look, before cinematic transformation.';
   }
 
   if (text.includes('woman') || text.includes('girl') || text.includes('female')) {
@@ -123,15 +149,14 @@ function buildBeforePrompt(prompt, title) {
 }
 
 function buildAfterPrompt(prompt, title) {
-  return `Use the input before photo as the source image. Apply this PromptStan prompt as the final edit while preserving realistic human anatomy and a natural photo look. Title: ${title}. Prompt: ${prompt.prompt_text || title}. High quality, realistic, sharp face details, natural lighting, no text, no watermark.`;
+  return `Use the input before photo as the source image. Apply this PromptStan prompt as the final edit while preserving the same person's identity, realistic human anatomy, and a natural photo look. Title: ${title}. Prompt: ${prompt.prompt_text || title}. High quality, realistic, sharp face details, natural lighting, no text, no watermark.`;
 }
 
 async function callOpenAIImageGeneration(env, prompt) {
-  const apiKey = getOpenAIKey(env);
   const response = await fetch(OPENAI_IMAGES_URL, {
     method: 'POST',
     headers: {
-      authorization: `Bearer ${apiKey}`,
+      authorization: `Bearer ${getOpenAIKey(env)}`,
       'content-type': 'application/json'
     },
     body: JSON.stringify({
@@ -145,18 +170,18 @@ async function callOpenAIImageGeneration(env, prompt) {
   return imageResponseToArrayBuffer(response);
 }
 
-async function callOpenAIImageEdit(env, imageBuffer, prompt) {
-  const apiKey = getOpenAIKey(env);
+async function callOpenAIImageEdit(env, imageSource, prompt) {
+  const contentType = normalizeImageContentType(imageSource.contentType);
   const form = new FormData();
   form.append('model', env.OPENAI_IMAGE_MODEL || DEFAULT_IMAGE_MODEL);
   form.append('prompt', prompt);
   form.append('size', env.OPENAI_IMAGE_SIZE || '1024x1024');
   form.append('n', '1');
-  form.append('image', new File([imageBuffer], 'before.png', { type: 'image/png' }));
+  form.append('image', new File([imageSource.buffer], `before.${extensionFromContentType(contentType)}`, { type: contentType }));
 
   const response = await fetch(OPENAI_EDITS_URL, {
     method: 'POST',
-    headers: { authorization: `Bearer ${apiKey}` },
+    headers: { authorization: `Bearer ${getOpenAIKey(env)}` },
     body: form
   });
 
@@ -178,20 +203,48 @@ async function imageResponseToArrayBuffer(response) {
 
   const item = data?.data?.[0];
   if (item?.b64_json) return base64ToArrayBuffer(item.b64_json);
-  if (item?.url) return loadImageBuffer(item.url);
+  if (item?.url) return (await loadImageSource(item.url)).buffer;
   throw new Error('OpenAI did not return image data');
 }
 
-async function loadImageBuffer(url) {
-  const response = await fetch(toAbsoluteUrl(url));
+async function loadImageSource(value, env = {}) {
+  const response = await fetch(toAbsoluteUrl(value, env));
   if (!response.ok) throw new Error(`Could not load image: ${response.status}`);
-  return response.arrayBuffer();
+  return {
+    buffer: await response.arrayBuffer(),
+    contentType: normalizeImageContentType(response.headers.get('content-type'))
+  };
 }
 
-function toAbsoluteUrl(value) {
+async function storeImage(env, key, buffer, contentType) {
+  await env.PROMPT_IMAGES.put(key, buffer, {
+    httpMetadata: {
+      contentType,
+      cacheControl: 'public, max-age=31536000, immutable'
+    }
+  });
+}
+
+function toAbsoluteUrl(value, env = {}) {
   const url = String(value || '');
   if (/^https?:\/\//i.test(url)) return url;
-  return `https://promptstan-api.hhhh46529.workers.dev${url.startsWith('/') ? '' : '/'}${url}`;
+  const base = String(env.PUBLIC_BASE_URL || DEFAULT_PUBLIC_BASE_URL).replace(/\/$/, '');
+  return `${base}${url.startsWith('/') ? '' : '/'}${url}`;
+}
+
+function normalizeImageContentType(value) {
+  const type = String(value || '').split(';')[0].trim().toLowerCase();
+  if (type === 'image/jpeg' || type === 'image/jpg') return 'image/jpeg';
+  if (type === 'image/webp') return 'image/webp';
+  if (type === 'image/gif') return 'image/gif';
+  return 'image/png';
+}
+
+function extensionFromContentType(contentType) {
+  if (contentType === 'image/jpeg') return 'jpg';
+  if (contentType === 'image/webp') return 'webp';
+  if (contentType === 'image/gif') return 'gif';
+  return 'png';
 }
 
 function base64ToArrayBuffer(base64) {
@@ -207,7 +260,6 @@ function getOpenAIKey(env) {
 }
 
 async function setImageStatus(env, promptId, status, error = null) {
-  await ensurePromptImageColumns(env);
   await env.DB.prepare(`
     UPDATE prompts
     SET image_status = ?, image_error = ?, updated_at = CURRENT_TIMESTAMP
