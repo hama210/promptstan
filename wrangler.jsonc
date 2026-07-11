@@ -10,6 +10,9 @@
     "directory": "./dist",
     "binding": "ASSETS"
   },
+  "ai": {
+    "binding": "AI"
+  },
   "d1_databases": [
     {
       "binding": "DB",
@@ -26,6 +29,11 @@
   ],
   "vars": {
     "DAILY_POST_ENABLED": "true",
-    "PUBLIC_BASE_URL": "https://promptstan-api.hhhh46529.workers.dev"
+    "PUBLIC_BASE_URL": "https://promptstan-api.hhhh46529.workers.dev",
+    "CLOUDFLARE_IMAGE_MODEL": "@cf/stabilityai/stable-diffusion-xl-base-1.0",
+    "CLOUDFLARE_IMAGE_STRENGTH": "0.68",
+    "CLOUDFLARE_IMAGE_STEPS": "16",
+    "CLOUDFLARE_IMAGE_WIDTH": "768",
+    "CLOUDFLARE_IMAGE_HEIGHT": "768"
   }
 }

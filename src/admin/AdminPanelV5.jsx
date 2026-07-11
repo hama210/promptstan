@@ -30,7 +30,8 @@ export default function AdminPanelV5() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'System check failed');
       const status = data.status || {};
-      setMessage(`D1 ${status.database ? '✅' : '❌'} · R2 ${status.r2 ? '✅' : '❌'} · OpenAI ${status.openai ? '✅' : '❌'} · Admin token ${status.admin_token ? '✅' : '❌'}`);
+      const provider = status.image_provider === 'openai' ? 'OpenAI' : status.image_provider === 'workers-ai' ? 'Workers AI' : 'Missing';
+      setMessage(`D1 ${status.database ? '✅' : '❌'} · R2 ${status.r2 ? '✅' : '❌'} · Images: ${provider} ${status.image_provider ? '✅' : '❌'} · Admin token ${status.admin_token ? '✅' : '❌'}`);
     } catch (error) {
       setMessage(error.message);
     } finally {
@@ -79,7 +80,7 @@ export default function AdminPanelV5() {
   return <>
     <section className="adminCard" style={{ margin: '20px auto 0', maxWidth: 1180 }} dir="rtl">
       <div className="adminCardTitle"><ShieldCheck size={22} /><h2>Cloudflare &amp; Image Repair</h2></div>
-      <p>پشکنینی D1، R2 و OpenAI بکە، یان وێنەکانی Before/After ـی نەبوو یان شکستخواردوو دووبارە دروست بکەرەوە.</p>
+      <p>پشکنینی D1، R2 و Workers AI بکە، یان وێنەکانی Before/After ـی نەبوو یان شکستخواردوو دووبارە دروست بکەرەوە.</p>
       <div className="adminTokenRow">
         <button type="button" onClick={checkSystem} disabled={working}><ShieldCheck size={17} /> Check system</button>
         <button type="button" onClick={retryMissingImages} disabled={working}><Wand2 size={17} /> Retry missing images</button>

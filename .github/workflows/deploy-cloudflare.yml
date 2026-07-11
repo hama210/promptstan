@@ -47,6 +47,41 @@ jobs:
           wranglerVersion: "4"
           command: whoami
 
+      - name: Check ADMIN_TOKEN Worker secret
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if npx wrangler secret list | grep -F 'ADMIN_TOKEN'; then
+            echo 'ADMIN_TOKEN is configured.'
+          else
+            echo '::warning::ADMIN_TOKEN is not configured. The public site works, but admin write actions remain locked.'
+          fi
+
+      - name: Verify live PromptStan deployment
+        env:
+          LIVE_BASE: https://promptstan-api.hhhh46529.workers.dev
+        run: |
+          set -euo pipefail
+
+          curl -fsSL "$LIVE_BASE/api/health" | grep -F '"ok":true'
+
+          status="$(curl -sS -o /tmp/admin-system.json -w '%{http_code}' "$LIVE_BASE/api/admin/system")"
+          test "$status" = "401"
+          grep -F '"error":"Unauthorized"' /tmp/admin-system.json
+
+          html="$(curl -fsSL "$LIVE_BASE/admin")"
+          asset="$(printf '%s' "$html" | grep -oE 'src="[^"]+\.js"' | head -n 1 | cut -d'"' -f2)"
+          test -n "$asset"
+
+          case "$asset" in
+            http*) asset_url="$asset" ;;
+            /*) asset_url="$LIVE_BASE$asset" ;;
+            *) asset_url="$LIVE_BASE/$asset" ;;
+          esac
+
+          curl -fsSL "$asset_url" -o /tmp/promptstan-app.js
+          grep -F 'Cloudflare & Image Repair' /tmp/promptstan-app.js
+
   deploy:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
@@ -74,3 +109,10 @@ jobs:
           wranglerVersion: "4"
           preCommands: wrangler d1 migrations apply promptstan-db --remote
           command: deploy --keep-vars
+
+      - name: Verify deployed image provider
+        env:
+          LIVE_BASE: https://promptstan-api.hhhh46529.workers.dev
+        run: |
+          set -euo pipefail
+          curl -fsSL "$LIVE_BASE/api/health" | grep -E '"image_provider":"(workers-ai|openai)"'
