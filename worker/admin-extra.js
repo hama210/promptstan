@@ -8,7 +8,7 @@ export async function adminListPrompts(env) {
   return json(result.results || []);
 }
 
-export async function adminUpdatePrompt(request, env, id, ctx) {
+export async function adminUpdatePrompt(request, env, id) {
   await ensurePromptImageColumns(env);
   const body = await request.json();
   const category = await getOrCreateCategory(env, body.category_slug || 'person-edit');
@@ -45,35 +45,33 @@ export async function adminUpdatePrompt(request, env, id, ctx) {
   await env.DB.prepare('DELETE FROM prompt_tags WHERE prompt_id = ?').bind(id).run();
   await attachTags(env, id, body.tags || []);
 
+  let imageResult = null;
   if (!beforeImageUrl || !afterImageUrl) {
     const prompt = await getPromptById(env, id);
-    const imageTask = ensurePromptImages(env, prompt);
-    if (ctx?.waitUntil) ctx.waitUntil(imageTask);
-    else await imageTask;
+    imageResult = await ensurePromptImages(env, prompt, { force: true });
   }
 
   return json({
-    ok: true,
+    ok: imageResult ? imageResult.ok : true,
     id,
     preview_image_url: previewImageUrl,
-    before_image_url: beforeImageUrl,
-    after_image_url: afterImageUrl,
-    image_status: imageStatus
-  });
+    before_image_url: imageResult?.before_image_url || beforeImageUrl,
+    after_image_url: imageResult?.after_image_url || afterImageUrl,
+    image_status: imageResult ? (imageResult.ok ? 'ready' : 'failed') : imageStatus,
+    image_error: imageResult?.error || null
+  }, imageResult && !imageResult.ok ? 500 : 200);
 }
 
-export async function adminRetryPromptImages(env, id, ctx) {
+export async function adminRetryPromptImages(env, id) {
   const prompt = await getPromptById(env, id);
   if (!prompt) return json({ error: 'Prompt not found' }, 404);
 
-  const imageTask = ensurePromptImages(env, prompt, { force: true });
-  if (ctx?.waitUntil) {
-    ctx.waitUntil(imageTask);
-    return json({ ok: true, id, image_status: 'generating' }, 202);
-  }
-
-  const result = await imageTask;
-  return json({ id, ...result }, result.ok ? 200 : 500);
+  const result = await ensurePromptImages(env, prompt, { force: true });
+  return json({
+    id,
+    ...result,
+    image_status: result.ok ? 'ready' : 'failed'
+  }, result.ok ? 200 : 500);
 }
 
 export async function adminDeletePrompt(env, id) {
