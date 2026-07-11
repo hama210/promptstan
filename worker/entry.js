@@ -1,6 +1,11 @@
 import app from './index.js';
 import { adminUpdatePrompt, adminRetryPromptImages } from './admin-extra.js';
-import { ensurePromptImageColumns, getConfiguredImageProvider } from './auto-images.js';
+import {
+  ensurePromptImageColumns,
+  ensurePromptImages,
+  getConfiguredImageProvider,
+  getPromptById
+} from './auto-images.js';
 
 const JSON_HEADERS = {
   'content-type': 'application/json; charset=utf-8',
@@ -22,7 +27,7 @@ export default {
     }
 
     if (url.pathname === '/api/health/images') {
-      return imageJobHealth(env);
+      return imageJobHealth(env, ctx);
     }
 
     if (url.pathname === '/api/admin/system') {
@@ -47,7 +52,7 @@ export default {
   }
 };
 
-async function imageJobHealth(env) {
+async function imageJobHealth(env, ctx) {
   try {
     await ensurePromptImageColumns(env);
 
@@ -72,14 +77,35 @@ async function imageJobHealth(env) {
       `).all()
     ]);
 
+    const recent = (recentResult.results || []).map((row) => ({
+      ...row,
+      image_error: sanitizeDiagnosticError(row.image_error)
+    }));
+
+    const knownFailure = recent.find((row) => (
+      row.image_status === 'failed'
+      && !row.has_before
+      && !row.has_after
+      && String(row.image_error).includes('input tensor `image` is not present in the model')
+    ));
+
+    let repairQueued = false;
+    if (knownFailure && getConfiguredImageProvider(env) === 'workers-ai') {
+      const prompt = await getPromptById(env, knownFailure.id);
+      if (prompt) {
+        const repairTask = ensurePromptImages(env, prompt);
+        if (ctx?.waitUntil) ctx.waitUntil(repairTask);
+        else await repairTask;
+        repairQueued = true;
+      }
+    }
+
     return json({
       ok: true,
       image_provider: getConfiguredImageProvider(env) || 'missing',
+      repair_queued: repairQueued,
       totals: totalsResult.results || [],
-      recent: (recentResult.results || []).map((row) => ({
-        ...row,
-        image_error: sanitizeDiagnosticError(row.image_error)
-      }))
+      recent
     }, 200, { 'cache-control': 'no-store' });
   } catch (error) {
     return json({
