@@ -1,1 +1,1 @@
-PromptStan production image verification after merging the FLUX-to-SDXL pipeline.
+PromptStan production image verification after deploying the raw-byte SDXL v4 pipeline.
