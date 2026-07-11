@@ -304,7 +304,23 @@ async function imageResponseToArrayBuffer(response) {
 }
 
 async function loadImageSource(value, env = {}) {
-  const response = await fetch(toAbsoluteUrl(value, env));
+  const imageUrl = String(value || '');
+
+  if (imageUrl.startsWith('/uploads/') && env.PROMPT_IMAGES) {
+    const encodedKey = imageUrl.slice('/uploads/'.length).split(/[?#]/)[0];
+    const key = decodeURIComponent(encodedKey);
+    const object = await env.PROMPT_IMAGES.get(key);
+    if (!object) throw new Error(`Could not load R2 image: ${key}`);
+
+    const headers = new Headers();
+    object.writeHttpMetadata(headers);
+    return {
+      buffer: await object.arrayBuffer(),
+      contentType: normalizeImageContentType(headers.get('content-type'))
+    };
+  }
+
+  const response = await fetch(toAbsoluteUrl(imageUrl, env));
   if (!response.ok) throw new Error(`Could not load image: ${response.status}`);
   return {
     buffer: await response.arrayBuffer(),
