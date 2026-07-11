@@ -1,0 +1,69 @@
+name: Verify PromptStan Img2Img Preview
+
+on:
+  push:
+    branches:
+      - agent/final-img2img-fix
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Verify preview revision
+        env:
+          PREVIEW_BASE: https://agent-final-img2img-fix-promptstan-api.hhhh46529.workers.dev
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            health="$(curl -fsS --retry 3 --retry-delay 2 "$PREVIEW_BASE/api/health" || true)"
+            printf '%s\n' "$health"
+            if printf '%s' "$health" | grep -F '"image_pipeline":"flux-img2img-r2-v6"' >/dev/null; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo 'The final img2img preview revision was not observed.' >&2
+          exit 1
+
+      - name: Repair and verify Before/After images
+        env:
+          PREVIEW_BASE: https://agent-final-img2img-fix-promptstan-api.hhhh46529.workers.dev
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 42); do
+            body="$(curl -fsS --retry 3 --retry-delay 2 "$PREVIEW_BASE/api/health/images")"
+            printf '%s\n' "$body" | tee preview-image-health.json
+
+            if printf '%s' "$body" | grep -F '"image_status":"ready"' >/dev/null \
+              && printf '%s' "$body" | grep -F '"has_before":1' >/dev/null \
+              && printf '%s' "$body" | grep -F '"has_after":1' >/dev/null; then
+              echo 'PromptStan Before and After images are ready in the preview.'
+              exit 0
+            fi
+
+            if printf '%s' "$body" | grep -F '"image_status":"failed"' >/dev/null \
+              && ! printf '%s' "$body" | grep -E 'input tensor `image`|Input prompt contains NSFW content|Could not load image: 404|Could not load R2 image:' >/dev/null; then
+              echo 'The dedicated img2img preview returned a new error.' >&2
+              exit 1
+            fi
+
+            sleep 10
+          done
+
+          echo 'The preview image repair did not finish within the verification window.' >&2
+          exit 1
+
+      - name: Upload preview health
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: promptstan-img2img-preview-health
+          path: preview-image-health.json
+          if-no-files-found: warn
+          retention-days: 1
