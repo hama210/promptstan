@@ -47,16 +47,19 @@ jobs:
           wranglerVersion: "4"
           command: whoami
 
-      - name: Verify required Worker secrets
+      - name: Verify ADMIN_TOKEN Worker secret
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-        run: |
-          set -euo pipefail
-          npx wrangler secret list > /tmp/promptstan-secrets.json
-          grep -F '"ADMIN_TOKEN"' /tmp/promptstan-secrets.json
-          grep -F '"OPENAI_API_KEY"' /tmp/promptstan-secrets.json
+        run: npx wrangler secret list | grep -F 'ADMIN_TOKEN'
+
+      - name: Verify OPENAI_API_KEY Worker secret
+        if: always()
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx wrangler secret list | grep -F 'OPENAI_API_KEY'
 
       - name: Verify live PromptStan deployment
+        if: always()
         env:
           LIVE_BASE: https://promptstan-api.hhhh46529.workers.dev
         run: |
