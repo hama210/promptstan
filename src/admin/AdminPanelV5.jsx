@@ -7,11 +7,18 @@ const API_BASE = window.location.hostname.includes('workers.dev') ? window.locat
 export default function AdminPanelV5() {
   const [message, setMessage] = useState('');
   const [working, setWorking] = useState(false);
-  const token = localStorage.getItem('promptstan-admin-token') || '';
-  const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+
+  function getToken() {
+    return localStorage.getItem('promptstan-admin-token') || '';
+  }
+
+  function getAuthHeaders() {
+    const token = getToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
 
   async function checkSystem() {
-    if (!token) {
+    if (!getToken()) {
       setMessage('Save ADMIN_TOKEN in the panel first.');
       return;
     }
@@ -19,7 +26,7 @@ export default function AdminPanelV5() {
     setWorking(true);
     setMessage('Checking Cloudflare bindings...');
     try {
-      const response = await fetch(`${API_BASE}/api/admin/system`, { headers: authHeaders, cache: 'no-store' });
+      const response = await fetch(`${API_BASE}/api/admin/system`, { headers: getAuthHeaders(), cache: 'no-store' });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'System check failed');
       const status = data.status || {};
@@ -32,7 +39,7 @@ export default function AdminPanelV5() {
   }
 
   async function retryMissingImages() {
-    if (!token) {
+    if (!getToken()) {
       setMessage('Save ADMIN_TOKEN in the panel first.');
       return;
     }
@@ -55,7 +62,7 @@ export default function AdminPanelV5() {
       for (const prompt of targets) {
         const retryResponse = await fetch(`${API_BASE}/api/admin/prompts/${prompt.id}/images/retry`, {
           method: 'POST',
-          headers: authHeaders
+          headers: getAuthHeaders()
         });
         if (retryResponse.ok) started += 1;
         else failed += 1;
