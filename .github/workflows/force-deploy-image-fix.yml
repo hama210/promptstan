@@ -1,0 +1,84 @@
+name: Force Deploy PromptStan Image Fix
+
+on:
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Deploy current image fix to production
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          wranglerVersion: "4"
+          command: deploy --keep-vars
+
+      - name: Verify the corrected Worker revision
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 18); do
+            health="$(curl -fsS --retry 3 --retry-delay 2 https://promptstan-api.hhhh46529.workers.dev/api/health)"
+            printf '%s\n' "$health"
+            if printf '%s' "$health" | grep -F '"image_pipeline":"flux-sdxl-safe-v3"' >/dev/null; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo 'The corrected Worker revision was not observed.' >&2
+          exit 1
+
+      - name: Queue and verify image repair
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 36); do
+            body="$(curl -fsS --retry 3 --retry-delay 2 https://promptstan-api.hhhh46529.workers.dev/api/health/images)"
+            printf '%s\n' "$body" | tee live-image-health.json
+
+            if printf '%s' "$body" | grep -F '"image_status":"ready"' >/dev/null \
+              && printf '%s' "$body" | grep -F '"has_before":1' >/dev/null \
+              && printf '%s' "$body" | grep -F '"has_after":1' >/dev/null; then
+              exit 0
+            fi
+
+            if printf '%s' "$body" | grep -F '"image_status":"failed"' >/dev/null \
+              && ! printf '%s' "$body" | grep -E 'input tensor `image`|Input prompt contains NSFW content' >/dev/null; then
+              echo 'The corrected pipeline returned a new error.' >&2
+              exit 1
+            fi
+
+            sleep 10
+          done
+
+          echo 'Image generation did not finish within the verification window.' >&2
+          exit 1
+
+      - name: Upload final image health
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: promptstan-force-deploy-health
+          path: live-image-health.json
+          if-no-files-found: warn
+          retention-days: 1
