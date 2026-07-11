@@ -1,7 +1,8 @@
 const OPENAI_IMAGES_URL = 'https://api.openai.com/v1/images/generations';
 const OPENAI_EDITS_URL = 'https://api.openai.com/v1/images/edits';
 const DEFAULT_OPENAI_IMAGE_MODEL = 'gpt-image-1';
-const DEFAULT_WORKERS_AI_IMAGE_MODEL = '@cf/stabilityai/stable-diffusion-xl-base-1.0';
+const DEFAULT_WORKERS_AI_TEXT_MODEL = '@cf/black-forest-labs/flux-1-schnell';
+const DEFAULT_WORKERS_AI_EDIT_MODEL = '@cf/stabilityai/stable-diffusion-xl-base-1.0';
 const DEFAULT_PUBLIC_BASE_URL = 'https://promptstan-api.hhhh46529.workers.dev';
 
 export function getConfiguredImageProvider(env) {
@@ -76,11 +77,9 @@ export async function ensurePromptImages(env, prompt, options = {}) {
     if (beforeImageUrl) {
       beforeSource = await loadImageSource(beforeImageUrl, env);
     } else {
-      beforeSource = {
-        buffer: await generateBeforeImage(env, prompt, title),
-        contentType: 'image/png'
-      };
-      const beforeKey = `generated/${safeKey(prompt.slug || prompt.id)}-before.png`;
+      beforeSource = await generateBeforeImageSource(env, prompt, title);
+      const beforeExtension = extensionFromContentType(beforeSource.contentType);
+      const beforeKey = `generated/${safeKey(prompt.slug || prompt.id)}-before.${beforeExtension}`;
       await storeImage(env, beforeKey, beforeSource.buffer, beforeSource.contentType);
       beforeImageUrl = `/uploads/${beforeKey}`;
     }
@@ -121,17 +120,27 @@ async function claimImageJob(env, promptId) {
   return Number(result.meta?.changes || 0) > 0;
 }
 
-async function generateBeforeImage(env, prompt, title) {
+async function generateBeforeImageSource(env, prompt, title) {
   const beforePrompt = buildBeforePrompt(prompt, title);
-  if (env.OPENAI_API_KEY) return callOpenAIImageGeneration(env, beforePrompt);
-  return callWorkersAIImage(env, beforePrompt);
+
+  if (env.OPENAI_API_KEY) {
+    return {
+      buffer: await callOpenAIImageGeneration(env, beforePrompt),
+      contentType: 'image/png'
+    };
+  }
+
+  return {
+    buffer: await callWorkersAITextToImage(env, beforePrompt),
+    contentType: 'image/jpeg'
+  };
 }
 
 async function generateAfterImage(env, prompt, title, beforeSource) {
   const editPrompt = buildAfterPrompt(prompt, title);
 
   if (!env.OPENAI_API_KEY) {
-    return callWorkersAIImage(env, editPrompt, beforeSource);
+    return callWorkersAIImageEdit(env, editPrompt, beforeSource);
   }
 
   try {
@@ -173,26 +182,36 @@ function buildAfterPrompt(prompt, title) {
   return `Use the input before photo as the source image. Apply this PromptStan prompt as the final edit while preserving the same person's identity, realistic human anatomy, pose consistency, and a natural photo look. Title: ${title}. Prompt: ${prompt.prompt_text || title}. High quality, realistic, sharp face details, natural lighting, no text, no watermark.`;
 }
 
-async function callWorkersAIImage(env, prompt, imageSource = null) {
+async function callWorkersAITextToImage(env, prompt) {
   if (!env.AI) throw new Error('Workers AI binding is missing');
 
-  const payload = {
-    prompt,
-    negative_prompt: 'text, watermark, logo, distorted face, deformed hands, extra fingers, duplicate body parts, blurry, low quality',
-    num_steps: clampInteger(env.CLOUDFLARE_IMAGE_STEPS, 16, 1, 20),
-    guidance: clampNumber(env.CLOUDFLARE_IMAGE_GUIDANCE, 7.5, 1, 20),
-    width: clampInteger(env.CLOUDFLARE_IMAGE_WIDTH, 768, 256, 1024),
-    height: clampInteger(env.CLOUDFLARE_IMAGE_HEIGHT, 768, 256, 1024)
-  };
+  const result = await env.AI.run(
+    env.CLOUDFLARE_TEXT_IMAGE_MODEL || DEFAULT_WORKERS_AI_TEXT_MODEL,
+    {
+      prompt,
+      steps: clampInteger(env.CLOUDFLARE_TEXT_IMAGE_STEPS, 4, 1, 8)
+    }
+  );
 
-  if (imageSource?.buffer) {
-    payload.image_b64 = arrayBufferToBase64(imageSource.buffer);
-    payload.strength = clampNumber(env.CLOUDFLARE_IMAGE_STRENGTH, 0.68, 0.05, 1);
-  }
+  return workersAIResultToArrayBuffer(result);
+}
+
+async function callWorkersAIImageEdit(env, prompt, imageSource) {
+  if (!env.AI) throw new Error('Workers AI binding is missing');
+  if (!imageSource?.buffer) throw new Error('Workers AI image edit requires a source image');
 
   const result = await env.AI.run(
-    env.CLOUDFLARE_IMAGE_MODEL || DEFAULT_WORKERS_AI_IMAGE_MODEL,
-    payload
+    env.CLOUDFLARE_EDIT_IMAGE_MODEL || DEFAULT_WORKERS_AI_EDIT_MODEL,
+    {
+      prompt,
+      negative_prompt: 'text, watermark, logo, distorted face, deformed hands, extra fingers, duplicate body parts, blurry, low quality',
+      image_b64: arrayBufferToBase64(imageSource.buffer),
+      strength: clampNumber(env.CLOUDFLARE_IMAGE_STRENGTH, 0.68, 0.05, 1),
+      num_steps: clampInteger(env.CLOUDFLARE_IMAGE_STEPS, 16, 1, 20),
+      guidance: clampNumber(env.CLOUDFLARE_IMAGE_GUIDANCE, 7.5, 1, 20),
+      width: clampInteger(env.CLOUDFLARE_IMAGE_WIDTH, 768, 256, 1024),
+      height: clampInteger(env.CLOUDFLARE_IMAGE_HEIGHT, 768, 256, 1024)
+    }
   );
 
   return workersAIResultToArrayBuffer(result);

@@ -18,6 +18,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Read live image health
+        run: |
+          curl -fsS --retry 5 --retry-delay 3 https://promptstan-api.hhhh46529.workers.dev/api/health/images > live-image-health.json
+          cat live-image-health.json
+
       - name: Inspect prompt table schema
         id: schema
         continue-on-error: true
@@ -58,7 +63,6 @@ jobs:
           printf '%s\n%s\n' "$SCHEMA_OUTPUT" "$SCHEMA_ERROR" > prompt-schema.txt
           printf '%s\n%s\n' "$RECENT_OUTPUT" "$RECENT_ERROR" > recent-image-jobs.txt
           printf '%s\n%s\n' "$TOTALS_OUTPUT" "$TOTALS_ERROR" > image-job-totals.txt
-          cat recent-image-jobs.txt
 
       - name: Upload diagnostics
         if: always()
@@ -66,6 +70,7 @@ jobs:
         with:
           name: promptstan-image-diagnostics
           path: |
+            live-image-health.json
             prompt-schema.txt
             recent-image-jobs.txt
             image-job-totals.txt
