@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 12
 
     steps:
-      - name: Verify shareable prompt metadata and image files
+      - name: Wait for the Phase 5 Worker preview
         env:
           PRODUCTION_BASE: https://promptstan-api.hhhh46529.workers.dev
           HEAD_BRANCH: ${{ github.head_ref }}
@@ -28,20 +28,29 @@ jobs:
           else
             APP_BASE="$PRODUCTION_BASE"
           fi
-          export APP_BASE
+          printf '%s' "$APP_BASE" >/tmp/app-base.txt
 
-          for attempt in $(seq 1 30); do
-            if curl -fsSL "$APP_BASE/api/health" >/tmp/health.json 2>/dev/null; then
-              break
-            fi
-            if [ "$attempt" -eq 30 ]; then
-              echo "PromptStan preview was not available at $APP_BASE" >&2
-              exit 1
+          for attempt in $(seq 1 36); do
+            health="$(curl -fsSL "$APP_BASE/api/health" 2>/dev/null || true)"
+            printf '%s\n' "$health"
+            if printf '%s' "$health" | grep -F '"launch_phase":"shareable-prompts-v1"' >/dev/null; then
+              exit 0
             fi
             sleep 5
           done
 
-          curl -fsSL "$APP_BASE/api/prompts" -o /tmp/prompts.json
+          echo "The Phase 5 preview revision was not available at $APP_BASE" >&2
+          exit 1
+
+      - name: Select a real production prompt
+        env:
+          PRODUCTION_BASE: https://promptstan-api.hhhh46529.workers.dev
+        run: |
+          set -euo pipefail
+          APP_BASE="$(cat /tmp/app-base.txt)"
+          export APP_BASE
+
+          curl -fsSL "$PRODUCTION_BASE/api/prompts" -o /tmp/prompts.json
 
           node <<'NODE'
           const fs = require('fs');
@@ -49,7 +58,7 @@ jobs:
           if (!Array.isArray(prompts)) throw new Error('Prompt API did not return an array');
 
           const prompt = prompts.find((item) => item.slug && item.before_image_url && item.after_image_url);
-          if (!prompt) throw new Error('No prompt has a slug plus Before and After images');
+          if (!prompt) throw new Error('No production prompt has a slug plus Before and After images');
 
           const base = process.env.APP_BASE.replace(/\/$/, '');
           const absolute = (value) => /^https?:\/\//i.test(value)
@@ -62,20 +71,10 @@ jobs:
           console.log(JSON.stringify({ id: prompt.id, slug: prompt.slug, image_status: prompt.image_status }));
           NODE
 
-      - name: Validate the prompt page and assets
-        env:
-          PRODUCTION_BASE: https://promptstan-api.hhhh46529.workers.dev
-          HEAD_BRANCH: ${{ github.head_ref }}
+      - name: Validate the prompt page, sitemap, and assets
         run: |
           set -euo pipefail
-
-          branch_slug="$(printf '%s' "$HEAD_BRANCH" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9-]+/-/g; s/^-+|-+$//g')"
-          if [ -n "$branch_slug" ]; then
-            APP_BASE="https://${branch_slug}-promptstan-api.hhhh46529.workers.dev"
-          else
-            APP_BASE="$PRODUCTION_BASE"
-          fi
-
+          APP_BASE="$(cat /tmp/app-base.txt)"
           slug="$(cat /tmp/prompt-slug.txt)"
           before_url="$(cat /tmp/before-url.txt)"
           after_url="$(cat /tmp/after-url.txt)"
@@ -86,6 +85,10 @@ jobs:
           grep -F '<meta name="twitter:image"' /tmp/prompt-page.html
           grep -F '"@type":"CreativeWork"' /tmp/prompt-page.html
           grep -F "/prompt/$slug" /tmp/prompt-page.html
+
+          curl -fsSL "$APP_BASE/sitemap.xml" -o /tmp/sitemap.xml
+          grep -F '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' /tmp/sitemap.xml
+          grep -F "/prompt/$slug" /tmp/sitemap.xml
 
           curl -fsSL -D /tmp/before-headers.txt "$before_url" -o /tmp/before-image
           curl -fsSL -D /tmp/after-headers.txt "$after_url" -o /tmp/after-image
