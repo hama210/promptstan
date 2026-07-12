@@ -16,7 +16,10 @@ document.addEventListener('click', (event) => {
 
   try {
     if (navigator.sendBeacon) {
-      navigator.sendBeacon(`${API_BASE}/api/share`, new Blob([payload], { type: 'application/json' }));
+      navigator.sendBeacon(
+        `${API_BASE}/api/share`,
+        new Blob([payload], { type: 'text/plain;charset=UTF-8' })
+      );
       return;
     }
   } catch {}
