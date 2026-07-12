@@ -11,7 +11,9 @@ export async function recordPromptShare(request, env) {
   const promptSlug = cleanText(body.slug, 120);
   const promptTitle = cleanText(body.title, 180);
 
-  if (!promptId && !promptSlug) return json({ error: 'Prompt identifier is required' }, 400);
+  if (!promptId && !promptSlug && !promptTitle) {
+    return json({ error: 'Prompt identifier is required' }, 400);
+  }
 
   await env.DB.prepare(`
     INSERT INTO prompt_events (
@@ -28,13 +30,13 @@ export async function recordPromptShare(request, env) {
     referrerHost(request)
   ).run();
 
+  const analyticsKey = promptSlug || promptTitle;
   const total = await env.DB.prepare(`
     SELECT COUNT(*) AS count
     FROM prompt_events
     WHERE event_type = 'share'
-      AND COALESCE(prompt_slug, '') = COALESCE(?, '')
-      AND COALESCE(prompt_id, 0) = COALESCE(?, 0)
-  `).bind(promptSlug || null, promptId).first();
+      AND COALESCE(prompt_slug, event_label, '') = ?
+  `).bind(analyticsKey).first();
 
   return json({ ok: true, shares: Number(total?.count || 0) }, 201);
 }
@@ -73,12 +75,13 @@ export async function adminAnalytics(request, env) {
     `).first(),
     env.DB.prepare(`
       SELECT
-        prompt_slug AS slug,
+        COALESCE(prompt_slug, event_label) AS slug,
         MAX(event_label) AS title,
         COUNT(*) AS shares
       FROM prompt_events
       WHERE event_type = 'share'
-      GROUP BY prompt_slug
+        AND COALESCE(prompt_slug, event_label, '') != ''
+      GROUP BY COALESCE(prompt_slug, event_label)
       ORDER BY shares DESC, MAX(created_at) DESC
       LIMIT 8
     `).all(),
