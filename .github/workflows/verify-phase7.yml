@@ -1,0 +1,144 @@
+name: Verify PromptStan Phase 7
+
+on:
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-growth-intelligence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Test Phase 7 ranking and recommendations
+        run: node scripts/test-growth-intelligence.mjs
+
+      - name: Test Phase 6 content safety
+        run: node scripts/test-phase6.mjs
+
+      - name: Test Phase 6 scheduling
+        run: node scripts/test-automation.mjs
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Validate Worker bundle
+        run: npx wrangler deploy --dry-run
+
+      - name: Wait for the Phase 7 preview
+        env:
+          HEAD_BRANCH: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+          branch_slug="$(printf '%s' "$HEAD_BRANCH" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9-]+/-/g; s/^-+|-+$//g')"
+          APP_BASE="https://${branch_slug}-promptstan-api.hhhh46529.workers.dev"
+          printf '%s' "$APP_BASE" >/tmp/app-base.txt
+
+          for attempt in $(seq 1 36); do
+            health="$(curl -fsSL "$APP_BASE/api/health" 2>/dev/null || true)"
+            printf '%s\n' "$health"
+            if printf '%s' "$health" | grep -F '"growth_intelligence":"conversion-intelligence-v1"' >/dev/null \
+              && printf '%s' "$health" | grep -F '"content_scale":"content-safety-v1"' >/dev/null \
+              && printf '%s' "$health" | grep -F '"automation":"dynamic-schedule-v1"' >/dev/null; then
+              exit 0
+            fi
+            sleep 5
+          done
+
+          echo "Phase 7 preview did not become available at $APP_BASE" >&2
+          exit 1
+
+      - name: Select a real prompt
+        run: |
+          set -euo pipefail
+          APP_BASE="$(cat /tmp/app-base.txt)"
+
+          curl -fsSL -X POST \
+            -H 'x-promptstan-bootstrap: empty-library-v1' \
+            "$APP_BASE/api/bootstrap" >/tmp/bootstrap.json
+
+          curl -fsSL "$APP_BASE/api/prompts" >/tmp/prompts.json
+          node <<'NODE'
+          const fs = require('fs');
+          const prompts = JSON.parse(fs.readFileSync('/tmp/prompts.json', 'utf8'));
+          const prompt = Array.isArray(prompts) ? prompts.find((item) => item.slug) : null;
+          if (!prompt) throw new Error('No prompt slug available');
+          fs.writeFileSync('/tmp/prompt-slug.txt', prompt.slug);
+          fs.writeFileSync('/tmp/prompt-title.txt', prompt.title_ku || prompt.title_en || prompt.slug);
+          NODE
+
+      - name: Record a complete conversion funnel
+        run: |
+          set -euo pipefail
+          APP_BASE="$(cat /tmp/app-base.txt)"
+          slug="$(cat /tmp/prompt-slug.txt)"
+          title="$(cat /tmp/prompt-title.txt)"
+          campaign="ci-phase7-${GITHUB_RUN_ID}"
+
+          curl -fsSL -X POST "$APP_BASE/api/referral-event" \
+            -H 'content-type: application/json' \
+            --data "{\"source\":\"whatsapp\",\"medium\":\"social\",\"campaign\":\"$campaign\",\"slug\":\"$slug\"}" \
+            | tee /tmp/referral.json
+          grep -F '"ok":true' /tmp/referral.json
+
+          for event_type in view copy favorite; do
+            curl -fsSL -X POST "$APP_BASE/api/conversion-event" \
+              -H 'content-type: application/json' \
+              --data "{\"event_type\":\"$event_type\",\"slug\":\"$slug\",\"title\":\"$title\",\"source\":\"whatsapp\",\"medium\":\"social\",\"campaign\":\"$campaign\"}" \
+              | tee "/tmp/$event_type.json"
+            grep -F '"ok":true' "/tmp/$event_type.json"
+            grep -F "\"event_type\":\"$event_type\"" "/tmp/$event_type.json"
+            grep -F "\"campaign\":\"$campaign\"" "/tmp/$event_type.json"
+          done
+
+          invalid_code="$(curl -sS -X POST "$APP_BASE/api/conversion-event" \
+            -H 'content-type: application/json' \
+            --data "{\"event_type\":\"password\",\"slug\":\"$slug\"}" \
+            -o /tmp/invalid-conversion.json -w '%{http_code}')"
+          test "$invalid_code" = "400"
+          grep -F '"error":"Unsupported conversion event"' /tmp/invalid-conversion.json
+
+      - name: Verify Admin intelligence stays protected
+        run: |
+          set -euo pipefail
+          APP_BASE="$(cat /tmp/app-base.txt)"
+          code="$(curl -sS -o /tmp/intelligence-unauthorized.json -w '%{http_code}' "$APP_BASE/api/admin/growth-intelligence?days=30")"
+          test "$code" = "401"
+          grep -F '"error":"Unauthorized"' /tmp/intelligence-unauthorized.json
+
+      - name: Verify Phase 7 Admin UI is bundled
+        run: |
+          set -euo pipefail
+          APP_BASE="$(cat /tmp/app-base.txt)"
+          html="$(curl -fsSL "$APP_BASE/admin")"
+          asset="$(printf '%s' "$html" | grep -oE 'src="[^"]+\.js"' | head -n 1 | cut -d'"' -f2)"
+          test -n "$asset"
+
+          case "$asset" in
+            http*) asset_url="$asset" ;;
+            /*) asset_url="$APP_BASE$asset" ;;
+            *) asset_url="$APP_BASE/$asset" ;;
+          esac
+
+          curl -fsSL "$asset_url" -o /tmp/promptstan-app.js
+          grep -F 'Conversion Reports & Recommendations' /tmp/promptstan-app.js
+          grep -F 'Campaign comparison' /tmp/promptstan-app.js
+          grep -F 'Search content gaps' /tmp/promptstan-app.js
+          grep -F 'Bot content signals' /tmp/promptstan-app.js
+          grep -F 'Strong conversion hours' /tmp/promptstan-app.js
