@@ -94,7 +94,7 @@ async function servePromptPage(request, env, slug) {
       || 'Free AI photo editing prompt from Promptstan.'
   );
   const image = absoluteImageUrl(
-    prompt.after_image_url || prompt.preview_image_url || prompt.before_image_url,
+    prompt.after_image_url || prompt.preview_image_url || prompt.before_image_url || '/favicon.svg',
     pageUrl.origin
   );
 
@@ -109,16 +109,14 @@ async function servePromptPage(request, env, slug) {
   html = replaceTag(html, /<meta name="twitter:title"[^>]*>/i, `<meta name="twitter:title" content="${escapeHtml(title)}" />`);
   html = replaceTag(html, /<meta name="twitter:description"[^>]*>/i, `<meta name="twitter:description" content="${escapeHtml(description)}" />`);
 
-  const imageTags = image
-    ? `<meta property="og:image" content="${escapeHtml(image)}" />\n    <meta property="og:image:alt" content="${escapeHtml(titleText)} Before and After" />\n    <meta name="twitter:image" content="${escapeHtml(image)}" />`
-    : '';
+  const imageTags = `<meta property="og:image" content="${escapeHtml(image)}" />\n    <meta property="og:image:alt" content="${escapeHtml(titleText)} Preview" />\n    <meta name="twitter:image" content="${escapeHtml(image)}" />`;
   const structuredData = JSON.stringify({
     '@context': 'https://schema.org',
     '@type': 'CreativeWork',
     name: titleText,
     description,
     url: canonical,
-    image: image || undefined,
+    image,
     inLanguage: ['ku', 'en', 'ar'],
     isAccessibleForFree: true,
     publisher: { '@type': 'Organization', name: 'Promptstan' }
