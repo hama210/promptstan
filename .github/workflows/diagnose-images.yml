@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - name: Wait for the Phase 5 Worker preview
+      - name: Wait for the fixed Worker preview
         env:
           PRODUCTION_BASE: https://promptstan-api.hhhh46529.workers.dev
           HEAD_BRANCH: ${{ github.head_ref }}
@@ -40,10 +40,25 @@ jobs:
             sleep 5
           done
 
-          echo "The Phase 5 analytics preview was not available at $APP_BASE" >&2
+          echo "The fixed PromptStan preview was not available at $APP_BASE" >&2
           exit 1
 
-      - name: Bootstrap an empty prompt library safely
+      - name: Verify admin CORS preflight
+        run: |
+          set -euo pipefail
+          APP_BASE="$(cat /tmp/app-base.txt)"
+
+          curl -sS -D /tmp/preflight-headers.txt -o /tmp/preflight-body.txt \
+            -X OPTIONS "$APP_BASE/api/admin/analytics" \
+            -H 'Origin: https://promptstan.pages.dev' \
+            -H 'Access-Control-Request-Method: GET' \
+            -H 'Access-Control-Request-Headers: authorization'
+
+          grep -iF 'access-control-allow-origin: *' /tmp/preflight-headers.txt
+          grep -iF 'access-control-allow-headers: content-type, authorization, x-promptstan-bootstrap' /tmp/preflight-headers.txt
+          grep -E '^HTTP/.* 204' /tmp/preflight-headers.txt
+
+      - name: Restore the complete known prompt library
         run: |
           set -euo pipefail
           APP_BASE="$(cat /tmp/app-base.txt)"
@@ -51,13 +66,14 @@ jobs:
           curl -fsSL -X POST \
             -H 'x-promptstan-bootstrap: empty-library-v1' \
             "$APP_BASE/api/bootstrap" | tee /tmp/bootstrap.json
+          grep -F '"ok":true' /tmp/bootstrap.json
 
           prompts="$(curl -fsSL "$APP_BASE/api/prompts")"
           printf '%s\n' "$prompts" | tee /tmp/preview-prompts.json
           PROMPTS="$prompts" node <<'NODE'
           const prompts = JSON.parse(process.env.PROMPTS || '[]');
-          if (!Array.isArray(prompts) || !prompts.some((prompt) => prompt.slug)) {
-            throw new Error('The preview prompt library is still empty after bootstrap');
+          if (!Array.isArray(prompts) || prompts.length < 24) {
+            throw new Error(`Expected at least 24 restored prompts, received ${prompts.length}`);
           }
           const prompt = prompts.find((item) => item.slug);
           require('fs').writeFileSync('/tmp/prompt-slug.txt', prompt.slug);
@@ -79,7 +95,7 @@ jobs:
 
           curl -fsSL -X POST "$APP_BASE/api/search-event" \
             -H 'content-type: application/json' \
-            --data '{"query":"cinematic portrait","result_count":1}' \
+            --data '{"query":"cinematic portrait","result_count":24}' \
             | tee /tmp/search-event.json
           grep -F '"ok":true' /tmp/search-event.json
 
@@ -110,7 +126,7 @@ jobs:
           grep -F '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' /tmp/sitemap.xml
           grep -F "/prompt/$slug" /tmp/sitemap.xml
 
-      - name: Verify production sees the seeded prompt
+      - name: Verify production D1 exposes the restored library
         env:
           PRODUCTION_BASE: https://promptstan-api.hhhh46529.workers.dev
         run: |
@@ -121,8 +137,11 @@ jobs:
           printf '%s\n' "$prompts"
           PROMPTS="$prompts" SLUG="$slug" node <<'NODE'
           const prompts = JSON.parse(process.env.PROMPTS || '[]');
-          if (!Array.isArray(prompts) || !prompts.some((prompt) => prompt.slug === process.env.SLUG)) {
-            throw new Error('Production D1 does not expose the bootstrapped prompt');
+          if (!Array.isArray(prompts) || prompts.length < 24) {
+            throw new Error(`Production D1 exposes only ${prompts.length} prompts`);
+          }
+          if (!prompts.some((prompt) => prompt.slug === process.env.SLUG)) {
+            throw new Error('Production D1 does not expose the restored prompt');
           }
           NODE
 
