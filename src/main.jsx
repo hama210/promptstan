@@ -8,6 +8,7 @@ import "./category-fix.css";
 import "./no-categories.css";
 import "./shareable-prompts.css";
 import "./admin/admin.css";
+import "./admin/campaign.css";
 
 const isAdmin = window.location.pathname.startsWith("/admin");
 

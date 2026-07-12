@@ -1,4 +1,5 @@
 import app from './entry.js';
+import { recordReferral } from './analytics.js';
 import { ensurePromptImageColumns } from './auto-images.js';
 import { restoreKnownLibrary } from './library-restore.js';
 
@@ -17,6 +18,10 @@ export default {
 
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: JSON_HEADERS });
+    }
+
+    if (url.pathname === '/api/referral-event' && request.method === 'POST') {
+      return recordReferral(request, env);
     }
 
     if (url.pathname === '/api/bootstrap' && request.method === 'POST') {

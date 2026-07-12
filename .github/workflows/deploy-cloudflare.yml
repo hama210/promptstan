@@ -82,7 +82,7 @@ jobs:
           esac
 
           curl -fsSL "$asset_url" -o /tmp/promptstan-app.js
-          grep -F 'Cloudflare & Image Repair' /tmp/promptstan-app.js
+          grep -F 'Cloudflare & Library Repair' /tmp/promptstan-app.js
 
   deploy:
     if: github.event_name != 'pull_request'

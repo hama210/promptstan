@@ -8,8 +8,10 @@ export async function recordPromptShare(request, env) {
   await ensureAnalyticsTable(env);
   const body = await readJson(request);
   const promptId = positiveInteger(body.prompt_id);
-  const promptSlug = cleanText(body.slug, 120);
+  const promptSlug = cleanSlug(body.slug, 120);
   const promptTitle = cleanText(body.title, 180);
+  const shareSource = cleanSlug(body.source || 'native', 60);
+  const campaign = cleanSlug(body.campaign || 'prompt-share', 100);
 
   if (!promptId && !promptSlug && !promptTitle) {
     return json({ error: 'Prompt identifier is required' }, 400);
@@ -21,13 +23,18 @@ export async function recordPromptShare(request, env) {
       prompt_slug,
       event_type,
       event_label,
-      referrer_host
-    ) VALUES (?, ?, 'share', ?, ?)
+      referrer_host,
+      campaign_source,
+      campaign_medium,
+      campaign_name
+    ) VALUES (?, ?, 'share', ?, ?, ?, 'share', ?)
   `).bind(
     promptId,
     promptSlug || null,
     promptTitle || null,
-    referrerHost(request)
+    referrerHost(request),
+    shareSource || 'native',
+    campaign || 'prompt-share'
   ).run();
 
   const analyticsKey = promptSlug || promptTitle;
@@ -61,16 +68,47 @@ export async function recordSearch(request, env) {
   return json({ ok: true }, 201);
 }
 
+export async function recordReferral(request, env) {
+  await ensureAnalyticsTable(env);
+  const body = await readJson(request);
+  const source = cleanSlug(body.source || inferSource(body.referrer || request.headers.get('referer')), 60) || 'direct';
+  const medium = cleanSlug(body.medium || inferMedium(source), 60) || 'referral';
+  const campaign = cleanSlug(body.campaign || 'prompt-share', 100) || 'prompt-share';
+  const promptSlug = cleanSlug(body.slug || body.content, 120);
+  const referrer = cleanHost(body.referrer) || referrerHost(request);
+
+  await env.DB.prepare(`
+    INSERT INTO prompt_events (
+      prompt_slug,
+      event_type,
+      referrer_host,
+      campaign_source,
+      campaign_medium,
+      campaign_name
+    ) VALUES (?, 'referral', ?, ?, ?, ?)
+  `).bind(
+    promptSlug || null,
+    referrer,
+    source,
+    medium,
+    campaign
+  ).run();
+
+  return json({ ok: true, source, medium, campaign }, 201);
+}
+
 export async function adminAnalytics(request, env) {
   await ensureAnalyticsTable(env);
 
-  const [totals, topShares, topSearches, daily] = await Promise.all([
+  const [totals, topShares, topSearches, daily, topSources, topCampaigns, topReferrers] = await Promise.all([
     env.DB.prepare(`
       SELECT
         SUM(CASE WHEN event_type = 'share' THEN 1 ELSE 0 END) AS shares,
         SUM(CASE WHEN event_type = 'search' THEN 1 ELSE 0 END) AS searches,
+        SUM(CASE WHEN event_type = 'referral' THEN 1 ELSE 0 END) AS referrals,
         SUM(CASE WHEN event_type = 'share' AND created_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END) AS shares_7d,
-        SUM(CASE WHEN event_type = 'search' AND created_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END) AS searches_7d
+        SUM(CASE WHEN event_type = 'search' AND created_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END) AS searches_7d,
+        SUM(CASE WHEN event_type = 'referral' AND created_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END) AS referrals_7d
       FROM prompt_events
     `).first(),
     env.DB.prepare(`
@@ -102,11 +140,44 @@ export async function adminAnalytics(request, env) {
       SELECT
         substr(created_at, 1, 10) AS day,
         SUM(CASE WHEN event_type = 'share' THEN 1 ELSE 0 END) AS shares,
-        SUM(CASE WHEN event_type = 'search' THEN 1 ELSE 0 END) AS searches
+        SUM(CASE WHEN event_type = 'search' THEN 1 ELSE 0 END) AS searches,
+        SUM(CASE WHEN event_type = 'referral' THEN 1 ELSE 0 END) AS referrals
       FROM prompt_events
       WHERE created_at >= datetime('now', '-14 days')
       GROUP BY substr(created_at, 1, 10)
       ORDER BY day ASC
+    `).all(),
+    env.DB.prepare(`
+      SELECT
+        COALESCE(campaign_source, 'direct') AS source,
+        COUNT(*) AS referrals
+      FROM prompt_events
+      WHERE event_type = 'referral'
+      GROUP BY COALESCE(campaign_source, 'direct')
+      ORDER BY referrals DESC, MAX(created_at) DESC
+      LIMIT 10
+    `).all(),
+    env.DB.prepare(`
+      SELECT
+        COALESCE(campaign_name, 'uncategorized') AS campaign,
+        COUNT(*) AS referrals
+      FROM prompt_events
+      WHERE event_type = 'referral'
+      GROUP BY COALESCE(campaign_name, 'uncategorized')
+      ORDER BY referrals DESC, MAX(created_at) DESC
+      LIMIT 10
+    `).all(),
+    env.DB.prepare(`
+      SELECT
+        referrer_host AS host,
+        COUNT(*) AS referrals
+      FROM prompt_events
+      WHERE event_type = 'referral'
+        AND referrer_host IS NOT NULL
+        AND referrer_host != ''
+      GROUP BY referrer_host
+      ORDER BY referrals DESC, MAX(created_at) DESC
+      LIMIT 8
     `).all()
   ]);
 
@@ -114,11 +185,16 @@ export async function adminAnalytics(request, env) {
     totals: {
       shares: Number(totals?.shares || 0),
       searches: Number(totals?.searches || 0),
+      referrals: Number(totals?.referrals || 0),
       shares_7d: Number(totals?.shares_7d || 0),
-      searches_7d: Number(totals?.searches_7d || 0)
+      searches_7d: Number(totals?.searches_7d || 0),
+      referrals_7d: Number(totals?.referrals_7d || 0)
     },
     top_shares: topShares.results || [],
     top_searches: topSearches.results || [],
+    top_sources: topSources.results || [],
+    top_campaigns: topCampaigns.results || [],
+    top_referrers: topReferrers.results || [],
     daily: daily.results || []
   });
 }
@@ -134,9 +210,20 @@ async function ensureAnalyticsTable(env) {
       event_label TEXT,
       result_count INTEGER DEFAULT 0,
       referrer_host TEXT,
+      campaign_source TEXT,
+      campaign_medium TEXT,
+      campaign_name TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `).run();
+
+  for (const statement of [
+    'ALTER TABLE prompt_events ADD COLUMN campaign_source TEXT',
+    'ALTER TABLE prompt_events ADD COLUMN campaign_medium TEXT',
+    'ALTER TABLE prompt_events ADD COLUMN campaign_name TEXT'
+  ]) {
+    try { await env.DB.prepare(statement).run(); } catch {}
+  }
 
   try {
     await env.DB.prepare(`
@@ -147,6 +234,10 @@ async function ensureAnalyticsTable(env) {
       CREATE INDEX IF NOT EXISTS idx_prompt_events_slug
       ON prompt_events (prompt_slug)
     `).run();
+    await env.DB.prepare(`
+      CREATE INDEX IF NOT EXISTS idx_prompt_events_campaign
+      ON prompt_events (campaign_source, campaign_name, created_at)
+    `).run();
   } catch {}
 }
 
@@ -154,18 +245,49 @@ async function readJson(request) {
   try {
     return await request.json();
   } catch {
-    return {};
+    try {
+      const text = await request.text();
+      return text ? JSON.parse(text) : {};
+    } catch {
+      return {};
+    }
   }
 }
 
 function referrerHost(request) {
-  const value = request.headers.get('referer') || request.headers.get('referrer') || '';
-  if (!value) return null;
+  return cleanHost(request.headers.get('referer') || request.headers.get('referrer'));
+}
+
+function cleanHost(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
   try {
-    return cleanText(new URL(value).hostname, 120) || null;
+    return cleanText(new URL(raw).hostname, 120) || null;
   } catch {
-    return null;
+    return cleanText(raw, 120) || null;
   }
+}
+
+function inferSource(value) {
+  const host = cleanHost(value) || '';
+  if (/whatsapp|wa\.me/i.test(host)) return 'whatsapp';
+  if (/telegram|t\.me/i.test(host)) return 'telegram';
+  if (/facebook|fb\.com|l\.facebook/i.test(host)) return 'facebook';
+  if (/instagram/i.test(host)) return 'instagram';
+  if (/tiktok/i.test(host)) return 'tiktok';
+  if (/x\.com|twitter|t\.co/i.test(host)) return 'x';
+  if (/google/i.test(host)) return 'google';
+  return host ? 'other-referral' : 'direct';
+}
+
+function inferMedium(source) {
+  return ['whatsapp', 'telegram', 'facebook', 'instagram', 'tiktok', 'x'].includes(source)
+    ? 'social'
+    : source === 'copy'
+      ? 'copy'
+      : source === 'native'
+        ? 'native-share'
+        : 'referral';
 }
 
 function positiveInteger(value) {
@@ -181,6 +303,13 @@ function boundedInteger(value, minimum, maximum) {
 
 function cleanText(value, maximumLength) {
   return String(value || '').replace(/\s+/g, ' ').trim().slice(0, maximumLength);
+}
+
+function cleanSlug(value, maximumLength) {
+  return cleanText(value, maximumLength)
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
 function json(data, status = 200) {
