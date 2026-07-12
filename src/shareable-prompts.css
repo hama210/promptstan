@@ -27,6 +27,51 @@
   background: rgba(0, 245, 160, .16);
 }
 
+.campaignSharePanel {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, .09);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .035);
+}
+
+.campaignSharePanel > strong {
+  display: block;
+  margin-bottom: 10px;
+  color: #f4f4f8;
+  font-size: .9rem;
+}
+
+.campaignShareGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.campaignShareButton {
+  min-width: 0;
+  min-height: 42px;
+  padding: 9px 8px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, .05);
+  color: #f4f4f8;
+  font-weight: 750;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.campaignShareButton:hover {
+  border-color: rgba(0, 245, 160, .42);
+  background: rgba(0, 245, 160, .09);
+}
+
+.campaignShareButton.whatsapp { color: #4ade80; }
+.campaignShareButton.telegram { color: #7dd3fc; }
+.campaignShareButton.facebook { color: #93c5fd; }
+.campaignShareButton.copy { color: #c4b5fd; }
+
 .cardActions {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px;
 }
@@ -118,6 +163,10 @@
 @media (max-width: 680px) {
   .relatedPromptGrid {
     grid-template-columns: 1fr;
+  }
+
+  .campaignShareGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
