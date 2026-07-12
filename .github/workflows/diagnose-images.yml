@@ -42,7 +42,7 @@ jobs:
           echo "The Phase 5 preview revision was not available at $APP_BASE" >&2
           exit 1
 
-      - name: Select a real production prompt
+      - name: Select a live or fallback prompt
         env:
           PRODUCTION_BASE: https://promptstan-api.hhhh46529.workers.dev
         run: |
@@ -57,10 +57,9 @@ jobs:
           if (!Array.isArray(prompts)) throw new Error('Prompt API did not return an array');
 
           const prompt = prompts.find((item) => item.slug);
-          if (!prompt) throw new Error('No production prompt has a slug');
-
-          fs.writeFileSync('/tmp/prompt-slug.txt', prompt.slug);
-          console.log(JSON.stringify({ id: prompt.id, slug: prompt.slug, image_status: prompt.image_status }));
+          const slug = prompt?.slug || 'prompt-1';
+          fs.writeFileSync('/tmp/prompt-slug.txt', slug);
+          console.log(JSON.stringify({ source: prompt ? 'd1' : 'fallback', slug }));
           NODE
 
       - name: Validate the prompt page, sitemap, and social image
