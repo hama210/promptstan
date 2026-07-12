@@ -2,6 +2,7 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 import AdminPanel from "./admin/AdminPanelV8.jsx";
+import "./promptIdentityMap.js";
 import "./shareAnalytics.js";
 import "./styles.css";
 import "./category-fix.css";
