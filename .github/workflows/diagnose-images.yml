@@ -12,7 +12,7 @@ permissions:
 jobs:
   verify-prompts:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
 
     steps:
       - name: Wait for the Phase 5 Worker preview
@@ -42,27 +42,27 @@ jobs:
           echo "The Phase 5 preview revision was not available at $APP_BASE" >&2
           exit 1
 
-      - name: Select a live or fallback prompt
-        env:
-          PRODUCTION_BASE: https://promptstan-api.hhhh46529.workers.dev
+      - name: Bootstrap an empty prompt library safely
         run: |
           set -euo pipefail
-          curl -fsSL "$PRODUCTION_BASE/api/prompts" -o /tmp/prompts.json
-          head -c 1200 /tmp/prompts.json || true
-          printf '\n'
+          APP_BASE="$(cat /tmp/app-base.txt)"
 
-          node <<'NODE'
-          const fs = require('fs');
-          const prompts = JSON.parse(fs.readFileSync('/tmp/prompts.json', 'utf8'));
-          if (!Array.isArray(prompts)) throw new Error('Prompt API did not return an array');
+          curl -fsSL -X POST \
+            -H 'x-promptstan-bootstrap: empty-library-v1' \
+            "$APP_BASE/api/bootstrap" | tee /tmp/bootstrap.json
 
+          prompts="$(curl -fsSL "$APP_BASE/api/prompts")"
+          printf '%s\n' "$prompts" | tee /tmp/preview-prompts.json
+          PROMPTS="$prompts" node <<'NODE'
+          const prompts = JSON.parse(process.env.PROMPTS || '[]');
+          if (!Array.isArray(prompts) || !prompts.some((prompt) => prompt.slug)) {
+            throw new Error('The preview prompt library is still empty after bootstrap');
+          }
           const prompt = prompts.find((item) => item.slug);
-          const slug = prompt?.slug || 'prompt-1';
-          fs.writeFileSync('/tmp/prompt-slug.txt', slug);
-          console.log(JSON.stringify({ source: prompt ? 'd1' : 'fallback', slug }));
+          require('fs').writeFileSync('/tmp/prompt-slug.txt', prompt.slug);
           NODE
 
-      - name: Validate the prompt page, sitemap, and social image
+      - name: Validate the preview prompt page, sitemap, and social image
         run: |
           set -euo pipefail
           APP_BASE="$(cat /tmp/app-base.txt)"
@@ -84,3 +84,25 @@ jobs:
           curl -fsSL "$APP_BASE/sitemap.xml" -o /tmp/sitemap.xml
           grep -F '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' /tmp/sitemap.xml
           grep -F "/prompt/$slug" /tmp/sitemap.xml
+
+      - name: Verify production sees the seeded prompt
+        env:
+          PRODUCTION_BASE: https://promptstan-api.hhhh46529.workers.dev
+        run: |
+          set -euo pipefail
+          slug="$(cat /tmp/prompt-slug.txt)"
+
+          prompts="$(curl -fsSL "$PRODUCTION_BASE/api/prompts")"
+          printf '%s\n' "$prompts"
+          PROMPTS="$prompts" SLUG="$slug" node <<'NODE'
+          const prompts = JSON.parse(process.env.PROMPTS || '[]');
+          if (!Array.isArray(prompts) || !prompts.some((prompt) => prompt.slug === process.env.SLUG)) {
+            throw new Error('Production D1 does not expose the bootstrapped prompt');
+          }
+          NODE
+
+          curl -fsSL "$PRODUCTION_BASE/prompt/$slug" -o /tmp/production-prompt-page.html
+          grep -F '<meta property="og:type" content="article"' /tmp/production-prompt-page.html
+          grep -F '<meta property="og:image"' /tmp/production-prompt-page.html
+          grep -F "/prompt/$slug" /tmp/production-prompt-page.html
+          curl -fsSL "$PRODUCTION_BASE/sitemap.xml" | grep -F "/prompt/$slug"

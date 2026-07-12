@@ -112,9 +112,28 @@ jobs:
           preCommands: wrangler d1 migrations apply promptstan-db --remote
           command: deploy --keep-vars
 
-      - name: Verify deployed image provider
+      - name: Bootstrap and verify the live prompt library
         env:
           LIVE_BASE: https://promptstan-api.hhhh46529.workers.dev
         run: |
           set -euo pipefail
-          curl -fsSL "$LIVE_BASE/api/health" | grep -E '"image_provider":"(workers-ai|openai)"'
+
+          for attempt in $(seq 1 24); do
+            health="$(curl -fsSL "$LIVE_BASE/api/health" 2>/dev/null || true)"
+            if printf '%s' "$health" | grep -F '"launch_phase":"shareable-prompts-v1"' >/dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 24 ]; then
+              echo 'The Phase 5 Worker was not observed in production.' >&2
+              exit 1
+            fi
+            sleep 5
+          done
+
+          curl -fsSL -X POST \
+            -H 'x-promptstan-bootstrap: empty-library-v1' \
+            "$LIVE_BASE/api/bootstrap" | tee /tmp/bootstrap.json
+
+          prompts="$(curl -fsSL "$LIVE_BASE/api/prompts")"
+          printf '%s\n' "$prompts"
+          PROMPTS="$prompts" node -e "const p=JSON.parse(process.env.PROMPTS); process.exit(Array.isArray(p)&&p.some(x=>x.slug)?0:1)"
