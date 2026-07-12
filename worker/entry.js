@@ -4,6 +4,7 @@ import { ensurePromptImageColumns, getConfiguredImageProvider } from './auto-ima
 import { serveSitemap } from './sitemap.js';
 
 const IMAGE_PIPELINE_VERSION = 'flux2-klein-sync-v7';
+const LAUNCH_PHASE_VERSION = 'shareable-prompts-v1';
 const JSON_HEADERS = {
   'content-type': 'application/json; charset=utf-8',
   'access-control-allow-origin': '*',
@@ -20,7 +21,8 @@ export default {
         ok: true,
         service: 'promptstan-api',
         image_provider: getConfiguredImageProvider(env) || 'missing',
-        image_pipeline: IMAGE_PIPELINE_VERSION
+        image_pipeline: IMAGE_PIPELINE_VERSION,
+        launch_phase: LAUNCH_PHASE_VERSION
       });
     }
 
@@ -150,6 +152,7 @@ async function adminSystemStatus(request, env) {
     openai: Boolean(env.OPENAI_API_KEY),
     image_provider: imageProvider,
     image_pipeline: IMAGE_PIPELINE_VERSION,
+    launch_phase: LAUNCH_PHASE_VERSION,
     admin_token: Boolean(env.ADMIN_TOKEN),
     daily_post_enabled: env.DAILY_POST_ENABLED !== 'false'
   };
