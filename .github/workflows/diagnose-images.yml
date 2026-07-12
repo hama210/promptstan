@@ -1,4 +1,4 @@
-name: Verify PromptStan Images
+name: Verify PromptStan Prompt Pages
 
 on:
   pull_request:
@@ -10,48 +10,77 @@ permissions:
   contents: read
 
 jobs:
-  verify-images:
+  verify-prompts:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
 
     steps:
-      - name: Verify prompt API and public image files
+      - name: Wait for the Phase 5 Worker preview
         env:
-          LIVE_BASE: https://promptstan-api.hhhh46529.workers.dev
+          PRODUCTION_BASE: https://promptstan-api.hhhh46529.workers.dev
+          HEAD_BRANCH: ${{ github.head_ref }}
         run: |
           set -euo pipefail
-          curl -fsSL "$LIVE_BASE/api/prompts" -o /tmp/prompts.json
+
+          branch_slug="$(printf '%s' "$HEAD_BRANCH" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9-]+/-/g; s/^-+|-+$//g')"
+          if [ -n "$branch_slug" ]; then
+            APP_BASE="https://${branch_slug}-promptstan-api.hhhh46529.workers.dev"
+          else
+            APP_BASE="$PRODUCTION_BASE"
+          fi
+          printf '%s' "$APP_BASE" >/tmp/app-base.txt
+
+          for attempt in $(seq 1 36); do
+            health="$(curl -fsSL "$APP_BASE/api/health" 2>/dev/null || true)"
+            printf '%s\n' "$health"
+            if printf '%s' "$health" | grep -F '"launch_phase":"shareable-prompts-v1"' >/dev/null; then
+              exit 0
+            fi
+            sleep 5
+          done
+
+          echo "The Phase 5 preview revision was not available at $APP_BASE" >&2
+          exit 1
+
+      - name: Select a live or fallback prompt
+        env:
+          PRODUCTION_BASE: https://promptstan-api.hhhh46529.workers.dev
+        run: |
+          set -euo pipefail
+          curl -fsSL "$PRODUCTION_BASE/api/prompts" -o /tmp/prompts.json
+          head -c 1200 /tmp/prompts.json || true
+          printf '\n'
 
           node <<'NODE'
           const fs = require('fs');
           const prompts = JSON.parse(fs.readFileSync('/tmp/prompts.json', 'utf8'));
           if (!Array.isArray(prompts)) throw new Error('Prompt API did not return an array');
 
-          const prompt = prompts.find((item) => item.before_image_url && item.after_image_url);
-          if (!prompt) throw new Error('No prompt has both Before and After images');
-
-          const base = process.env.LIVE_BASE.replace(/\/$/, '');
-          const absolute = (value) => /^https?:\/\//i.test(value)
-            ? value
-            : `${base}${value.startsWith('/') ? '' : '/'}${value}`;
-
-          fs.writeFileSync('/tmp/before-url.txt', absolute(prompt.before_image_url));
-          fs.writeFileSync('/tmp/after-url.txt', absolute(prompt.after_image_url));
-          console.log(JSON.stringify({
-            id: prompt.id,
-            image_status: prompt.image_status,
-            before_image_url: prompt.before_image_url,
-            after_image_url: prompt.after_image_url
-          }));
+          const prompt = prompts.find((item) => item.slug);
+          const slug = prompt?.slug || 'prompt-1';
+          fs.writeFileSync('/tmp/prompt-slug.txt', slug);
+          console.log(JSON.stringify({ source: prompt ? 'd1' : 'fallback', slug }));
           NODE
 
-          before_url="$(cat /tmp/before-url.txt)"
-          after_url="$(cat /tmp/after-url.txt)"
+      - name: Validate the prompt page, sitemap, and social image
+        run: |
+          set -euo pipefail
+          APP_BASE="$(cat /tmp/app-base.txt)"
+          slug="$(cat /tmp/prompt-slug.txt)"
 
-          curl -fsSL -D /tmp/before-headers.txt "$before_url" -o /tmp/before-image
-          curl -fsSL -D /tmp/after-headers.txt "$after_url" -o /tmp/after-image
+          curl -fsSL "$APP_BASE/prompt/$slug" -o /tmp/prompt-page.html
+          grep -F '<meta property="og:type" content="article"' /tmp/prompt-page.html
+          grep -F '<meta property="og:image"' /tmp/prompt-page.html
+          grep -F '<meta name="twitter:image"' /tmp/prompt-page.html
+          grep -F '"@type":"CreativeWork"' /tmp/prompt-page.html
+          grep -F "/prompt/$slug" /tmp/prompt-page.html
 
-          grep -iE '^content-type: image/' /tmp/before-headers.txt
-          grep -iE '^content-type: image/' /tmp/after-headers.txt
-          test -s /tmp/before-image
-          test -s /tmp/after-image
+          social_image="$(grep -oE '<meta property="og:image" content="[^"]+"' /tmp/prompt-page.html | head -n 1 | sed -E 's/.*content="([^"]+)"/\1/')"
+          test -n "$social_image"
+          curl -fsSL -D /tmp/social-image-headers.txt "$social_image" -o /tmp/social-image
+          grep -iE '^content-type: image/' /tmp/social-image-headers.txt
+          test -s /tmp/social-image
+
+          curl -fsSL "$APP_BASE/sitemap.xml" -o /tmp/sitemap.xml
+          grep -F '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' /tmp/sitemap.xml
+          grep -F "/prompt/$slug" /tmp/sitemap.xml

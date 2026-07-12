@@ -5,6 +5,7 @@ import AdminPanel from "./admin/AdminPanelV5.jsx";
 import "./styles.css";
 import "./category-fix.css";
 import "./no-categories.css";
+import "./shareable-prompts.css";
 import "./admin/admin.css";
 
 const isAdmin = window.location.pathname.startsWith("/admin");

@@ -1,0 +1,34 @@
+.modalActionRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.modalActionRow .favoriteWide {
+  margin-top: 0;
+}
+
+.shareWide {
+  width: 100%;
+  justify-content: center;
+  border: 1px solid rgba(0, 245, 160, .34);
+  border-radius: 16px;
+  background: rgba(0, 245, 160, .09);
+  color: #00f5a0;
+  padding: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.shareWide:hover {
+  border-color: #00f5a0;
+  background: rgba(0, 245, 160, .16);
+}
+
+@media (max-width: 560px) {
+  .modalActionRow {
+    grid-template-columns: 1fr;
+  }
+}

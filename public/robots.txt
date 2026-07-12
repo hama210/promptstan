@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+
+Sitemap: https://promptstan-api.hhhh46529.workers.dev/sitemap.xml
