@@ -12,7 +12,7 @@ permissions:
 jobs:
   verify-prompts:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
 
     steps:
       - name: Wait for the Phase 5 Worker preview
@@ -48,8 +48,6 @@ jobs:
         run: |
           set -euo pipefail
           curl -fsSL "$PRODUCTION_BASE/api/prompts" -o /tmp/prompts.json
-          head -c 1200 /tmp/prompts.json || true
-          printf '\n'
 
           node <<'NODE'
           const fs = require('fs');
@@ -62,7 +60,7 @@ jobs:
           console.log(JSON.stringify({ source: prompt ? 'd1' : 'fallback', slug }));
           NODE
 
-      - name: Validate the prompt page, sitemap, and social image
+      - name: Validate the preview prompt page, sitemap, and social image
         run: |
           set -euo pipefail
           APP_BASE="$(cat /tmp/app-base.txt)"
@@ -84,3 +82,51 @@ jobs:
           curl -fsSL "$APP_BASE/sitemap.xml" -o /tmp/sitemap.xml
           grep -F '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' /tmp/sitemap.xml
           grep -F "/prompt/$slug" /tmp/sitemap.xml
+
+      - name: Verify the production deployment and D1 seed
+        env:
+          PRODUCTION_BASE: https://promptstan-api.hhhh46529.workers.dev
+        run: |
+          set -euo pipefail
+
+          for attempt in $(seq 1 36); do
+            health="$(curl -fsSL "$PRODUCTION_BASE/api/health" 2>/dev/null || true)"
+            prompts="$(curl -fsSL "$PRODUCTION_BASE/api/prompts" 2>/dev/null || printf '[]')"
+            printf '%s\n' "$health"
+            printf '%s\n' "$prompts" | head -c 1200
+            printf '\n'
+
+            ready="$(HEALTH="$health" PROMPTS="$prompts" node <<'NODE'
+            const health = JSON.parse(process.env.HEALTH || '{}');
+            const prompts = JSON.parse(process.env.PROMPTS || '[]');
+            const ok = health.launch_phase === 'shareable-prompts-v1'
+              && Array.isArray(prompts)
+              && prompts.some((prompt) => prompt.slug);
+            process.stdout.write(ok ? 'yes' : 'no');
+            NODE
+            )"
+
+            if [ "$ready" = "yes" ]; then
+              printf '%s' "$prompts" >/tmp/production-prompts.json
+              break
+            fi
+
+            if [ "$attempt" -eq 36 ]; then
+              echo 'Production did not expose the Phase 5 Worker and seeded D1 prompt.' >&2
+              exit 1
+            fi
+            sleep 5
+          done
+
+          production_slug="$(node <<'NODE'
+          const fs = require('fs');
+          const prompts = JSON.parse(fs.readFileSync('/tmp/production-prompts.json', 'utf8'));
+          process.stdout.write(prompts.find((prompt) => prompt.slug).slug);
+          NODE
+          )"
+
+          curl -fsSL "$PRODUCTION_BASE/prompt/$production_slug" -o /tmp/production-prompt-page.html
+          grep -F '<meta property="og:type" content="article"' /tmp/production-prompt-page.html
+          grep -F '<meta property="og:image"' /tmp/production-prompt-page.html
+          grep -F "/prompt/$production_slug" /tmp/production-prompt-page.html
+          curl -fsSL "$PRODUCTION_BASE/sitemap.xml" | grep -F "/prompt/$production_slug"
