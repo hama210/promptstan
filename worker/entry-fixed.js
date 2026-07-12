@@ -1,4 +1,4 @@
-import app from './entry.js';
+import app from './entry-v6.js';
 import { recordReferral } from './analytics.js';
 import { ensurePromptImageColumns } from './auto-images.js';
 import { restoreKnownLibrary } from './library-restore.js';
