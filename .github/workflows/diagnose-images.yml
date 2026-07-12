@@ -28,6 +28,7 @@ jobs:
           else
             APP_BASE="$PRODUCTION_BASE"
           fi
+          export APP_BASE
 
           for attempt in $(seq 1 30); do
             if curl -fsSL "$APP_BASE/api/health" >/tmp/health.json 2>/dev/null; then
@@ -60,8 +61,6 @@ jobs:
           fs.writeFileSync('/tmp/after-url.txt', absolute(prompt.after_image_url));
           console.log(JSON.stringify({ id: prompt.id, slug: prompt.slug, image_status: prompt.image_status }));
           NODE
-        env:
-          APP_BASE: ${{ env.APP_BASE }}
 
       - name: Validate the prompt page and assets
         env:
