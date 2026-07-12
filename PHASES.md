@@ -13,8 +13,9 @@
    - ✅ Shareable `/prompt/:slug` pages
    - ✅ WhatsApp, Telegram, and social preview metadata
    - ✅ SEO, structured data, robots rules, and dynamic sitemap
-   - ✅ Empty-library fallback pages and D1 starter seed
-   - ⏳ Public navigation and conversion improvements
+   - ✅ Empty-library fallback pages and safe D1 self-healing
+   - ✅ Live D1 + built-in prompt library merging
+   - ✅ Functional collections, card sharing, and related prompts
    - ⏳ Share analytics and growth loops
 
 ## Next

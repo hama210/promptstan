@@ -4,6 +4,8 @@ const API_BASE = 'https://promptstan-api.hhhh46529.workers.dev';
 const gradients = ['purple', 'green', 'gold', 'pink', 'blue', 'rose'];
 
 export async function loadLibraryData() {
+  const staticPrompts = fallbackPrompts.map((prompt, index) => normalizePrompt(prompt, index, 'static'));
+
   try {
     const promptsResponse = await fetch(`${API_BASE}/api/prompts`);
     if (!promptsResponse.ok) throw new Error('API not ready');
@@ -20,14 +22,27 @@ export async function loadLibraryData() {
       apiTags = tagsResponse.ok ? await tagsResponse.json() : [];
     } catch {}
 
+    const livePrompts = Array.isArray(apiPrompts)
+      ? apiPrompts.map((prompt, index) => normalizePrompt(prompt, index, 'api'))
+      : [];
+
     return {
-      categories: apiCategories.length ? apiCategories.map(normalizeCategory) : fallbackCategories,
-      prompts: apiPrompts.length ? apiPrompts.map(normalizePrompt) : fallbackPrompts.map(normalizePrompt),
-      tags: apiTags.length ? apiTags.map((tag) => tag.name) : fallbackTags,
-      source: apiPrompts.length ? 'api' : 'static'
+      categories: mergeCategories(apiCategories.map(normalizeCategory), fallbackCategories),
+      prompts: mergePromptLibraries(livePrompts, staticPrompts),
+      tags: mergeTags(apiTags.map((tag) => tag.name), fallbackTags),
+      source: livePrompts.length ? 'hybrid' : 'static',
+      liveCount: livePrompts.length,
+      staticCount: staticPrompts.length
     };
   } catch {
-    return { categories: fallbackCategories, prompts: fallbackPrompts.map(normalizePrompt), tags: fallbackTags, source: 'static' };
+    return {
+      categories: fallbackCategories,
+      prompts: staticPrompts,
+      tags: fallbackTags,
+      source: 'static',
+      liveCount: 0,
+      staticCount: staticPrompts.length
+    };
   }
 }
 
@@ -37,13 +52,12 @@ export async function getPromptBySlug(slug) {
 
   try {
     const response = await fetch(`${API_BASE}/api/prompts/${encodeURIComponent(safeSlug)}`);
-    if (response.ok) return normalizePrompt(await response.json());
+    if (response.ok) return normalizePrompt(await response.json(), 0, 'api');
   } catch {}
 
-  const fallback = fallbackPrompts
-    .map(normalizePrompt)
-    .find((prompt) => prompt.slug === safeSlug);
-  return fallback || null;
+  return fallbackPrompts
+    .map((prompt, index) => normalizePrompt(prompt, index, 'static'))
+    .find((prompt) => prompt.slug === safeSlug) || null;
 }
 
 export async function searchLibrary(query) {
@@ -53,16 +67,46 @@ export async function searchLibrary(query) {
     const response = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(term)}`);
     if (!response.ok) throw new Error('Search API not ready');
     const prompts = await response.json();
-    return prompts.map(normalizePrompt);
+    return Array.isArray(prompts)
+      ? prompts.map((prompt, index) => normalizePrompt(prompt, index, 'api'))
+      : [];
   } catch {
     return null;
   }
 }
 
 export async function trackPromptAction(id, action) {
+  if (!id) return;
   try {
     await fetch(`${API_BASE}/api/${action}/${id}`, { method: 'POST' });
   } catch {}
+}
+
+function mergePromptLibraries(livePrompts, staticPrompts) {
+  const seenSlugs = new Set();
+  const merged = [];
+
+  for (const prompt of [...livePrompts, ...staticPrompts]) {
+    if (!prompt.slug || seenSlugs.has(prompt.slug)) continue;
+    seenSlugs.add(prompt.slug);
+    merged.push(prompt);
+  }
+
+  return merged;
+}
+
+function mergeCategories(liveCategories, staticCategories) {
+  const seen = new Set();
+  return [...liveCategories, ...staticCategories].filter((category) => {
+    const key = category.slug || category.name;
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function mergeTags(liveTags, staticTags) {
+  return [...new Set([...liveTags, ...staticTags].filter(Boolean))];
 }
 
 function normalizeCategory(category) {
@@ -74,16 +118,20 @@ function normalizeCategory(category) {
   };
 }
 
-export function normalizePrompt(prompt, index = 0) {
+export function normalizePrompt(prompt, index = 0, source = 'api') {
   const title = prompt.title_ku || prompt.title_en || prompt.title_ar || prompt.title || 'Untitled Prompt';
-  const slug = prompt.slug || `prompt-${prompt.id || index}`;
+  const slug = prompt.slug || `prompt-${prompt.id || index + 1}`;
   const englishTitle = prompt.title_en || prompt.imageTitle || title;
   const beforeImage = normalizeImageUrl(prompt.before_image_url || prompt.beforeImage || '');
   const afterImage = normalizeImageUrl(prompt.after_image_url || prompt.afterImage || '');
   const previewImage = normalizeImageUrl(prompt.preview_image_url || prompt.previewImage || prompt.image || afterImage || '');
+  const trackId = source === 'api' ? prompt.id : null;
 
   return {
     id: prompt.id,
+    key: `${source}-${slug}`,
+    source,
+    trackId,
     slug,
     title,
     category: prompt.category_name || prompt.category || 'دەستکاری کەس',
