@@ -29,6 +29,12 @@ jobs:
       - name: Test rotation, similarity, and quality scoring
         run: node scripts/test-phase6.mjs
 
+      - name: Test schedules, Iraq time, and batch limits
+        run: node scripts/test-automation.mjs
+
+      - name: Require hourly Cloudflare schedule checks
+        run: grep -F '"crons": ["0 * * * *"]' wrangler.jsonc
+
       - name: Build frontend
         run: npm run build
 
@@ -48,7 +54,8 @@ jobs:
             health="$(curl -fsSL "$APP_BASE/api/health" 2>/dev/null || true)"
             printf '%s\n' "$health"
             if printf '%s' "$health" | grep -F '"content_scale":"content-safety-v1"' >/dev/null \
-              && printf '%s' "$health" | grep -F '"rotation_count":240' >/dev/null; then
+              && printf '%s' "$health" | grep -F '"rotation_count":240' >/dev/null \
+              && printf '%s' "$health" | grep -F '"automation":"dynamic-schedule-v1"' >/dev/null; then
               exit 0
             fi
             sleep 5
@@ -62,13 +69,23 @@ jobs:
           set -euo pipefail
           APP_BASE="$(cat /tmp/app-base.txt)"
 
-          status_code="$(curl -sS -o /tmp/status-unauthorized.json -w '%{http_code}' "$APP_BASE/api/admin/content-scale/status")"
-          test "$status_code" = "401"
-          grep -F '"error":"Unauthorized"' /tmp/status-unauthorized.json
+          for endpoint in \
+            '/api/admin/content-scale/status' \
+            '/api/admin/automation/settings' \
+            '/api/admin/automation/history' \
+            '/api/admin/images/queue'; do
+            status_code="$(curl -sS -o /tmp/unauthorized.json -w '%{http_code}' "$APP_BASE$endpoint")"
+            test "$status_code" = "401"
+            grep -F '"error":"Unauthorized"' /tmp/unauthorized.json
+          done
 
           scan_code="$(curl -sS -X POST -o /tmp/scan-unauthorized.json -w '%{http_code}' "$APP_BASE/api/admin/content-scale/scan")"
           test "$scan_code" = "401"
           grep -F '"error":"Unauthorized"' /tmp/scan-unauthorized.json
+
+          batch_code="$(curl -sS -X POST -H 'content-type: application/json' --data '{"limit":3}' -o /tmp/batch-unauthorized.json -w '%{http_code}' "$APP_BASE/api/admin/images/batch")"
+          test "$batch_code" = "401"
+          grep -F '"error":"Unauthorized"' /tmp/batch-unauthorized.json
 
       - name: Verify Phase 6 Admin UI is bundled
         run: |
@@ -88,3 +105,7 @@ jobs:
           grep -F 'Duplicate Protection & Smart Rotation' /tmp/promptstan-app.js
           grep -F 'Publish next safe prompt' /tmp/promptstan-app.js
           grep -F 'Rotation combinations' /tmp/promptstan-app.js
+          grep -F 'Bot Schedule & Image Batches' /tmp/promptstan-app.js
+          grep -F 'Run image batch now' /tmp/promptstan-app.js
+          grep -F 'Iraq/Kurdistan' /tmp/promptstan-app.js
+          grep -F 'Save schedule' /tmp/promptstan-app.js
