@@ -1,0 +1,11 @@
+{
+  "name": "Promptstan",
+  "short_name": "Promptstan",
+  "description": "Kurdish-first AI prompt library for realistic person photo editing.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "lang": "ku",
+  "dir": "rtl"
+}
