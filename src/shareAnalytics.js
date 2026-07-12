@@ -16,11 +16,11 @@ document.addEventListener('click', (event) => {
 
   try {
     if (navigator.sendBeacon) {
-      navigator.sendBeacon(
+      const queued = navigator.sendBeacon(
         `${API_BASE}/api/share`,
         new Blob([payload], { type: 'text/plain;charset=UTF-8' })
       );
-      return;
+      if (queued) return;
     }
   } catch {}
 
