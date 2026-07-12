@@ -1,6 +1,7 @@
 import app from './index.js';
 import { adminUpdatePrompt, adminRetryPromptImages } from './admin-extra.js';
 import { ensurePromptImageColumns, getConfiguredImageProvider } from './auto-images.js';
+import { getFallbackPrompt } from './fallback-prompts.js';
 import { serveSitemap } from './sitemap.js';
 
 const IMAGE_PIPELINE_VERSION = 'flux2-klein-sync-v7';
@@ -65,13 +66,14 @@ async function servePromptPage(request, env, slug) {
   if (!env.ASSETS) return app.fetch(request, env, {});
 
   await ensurePromptImageColumns(env);
-  const prompt = await env.DB.prepare(`
+  const databasePrompt = await env.DB.prepare(`
     SELECT prompts.*, categories.name_ku AS category_name
     FROM prompts
     JOIN categories ON prompts.category_id = categories.id
     WHERE prompts.slug = ?
     LIMIT 1
   `).bind(slug).first();
+  const prompt = databasePrompt || getFallbackPrompt(slug);
 
   if (!prompt) return app.fetch(request, env, {});
 
