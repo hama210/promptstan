@@ -27,8 +27,106 @@
   background: rgba(0, 245, 160, .16);
 }
 
+.cardActions {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px;
+}
+
+.cardShareButton {
+  min-width: 44px;
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, .13);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, .05);
+  color: #d8d8e5;
+}
+
+.cardShareButton:hover {
+  color: #00f5a0;
+  border-color: rgba(0, 245, 160, .45);
+  background: rgba(0, 245, 160, .1);
+}
+
+.featureShare {
+  align-self: stretch;
+}
+
+.collectionRow button {
+  transition: border-color .18s ease, background .18s ease, color .18s ease, transform .18s ease;
+}
+
+.collectionRow button:hover,
+.collectionRow button.active {
+  color: #00f5a0;
+  border-color: rgba(0, 245, 160, .48);
+  background: rgba(0, 245, 160, .1);
+  transform: translateY(-2px);
+}
+
+.relatedPrompts {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, .08);
+}
+
+.relatedPrompts h3 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+  color: #f4f4f8;
+}
+
+.relatedPromptGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.relatedPromptGrid button {
+  min-width: 0;
+  padding: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  text-align: start;
+  border: 1px solid rgba(255, 255, 255, .09);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, .035);
+}
+
+.relatedPromptGrid button:hover {
+  border-color: rgba(139, 92, 246, .55);
+  background: rgba(139, 92, 246, .1);
+}
+
+.relatedPromptGrid span {
+  color: #00f5a0;
+  font-size: .72rem;
+}
+
+.relatedPromptGrid strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.relatedPromptGrid small {
+  color: #8f8f9c;
+}
+
+@media (max-width: 680px) {
+  .relatedPromptGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 560px) {
   .modalActionRow {
     grid-template-columns: 1fr;
+  }
+
+  .cardActions {
+    grid-template-columns: 1fr 1fr 42px;
   }
 }
