@@ -34,6 +34,15 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Test Phase 6 content safety
+        run: node scripts/test-phase6.mjs
+
+      - name: Test Phase 6 scheduling
+        run: node scripts/test-automation.mjs
+
+      - name: Verify hourly automation trigger
+        run: grep -F '"crons": ["0 * * * *"]' wrangler.jsonc
+
       - name: Build frontend
         run: npm run build
 
@@ -101,6 +110,15 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Test Phase 6 content safety
+        run: node scripts/test-phase6.mjs
+
+      - name: Test Phase 6 scheduling
+        run: node scripts/test-automation.mjs
+
+      - name: Verify hourly automation trigger
+        run: grep -F '"crons": ["0 * * * *"]' wrangler.jsonc
+
       - name: Build frontend
         run: npm run build
 
@@ -120,11 +138,13 @@ jobs:
 
           for attempt in $(seq 1 24); do
             health="$(curl -fsSL "$LIVE_BASE/api/health" 2>/dev/null || true)"
-            if printf '%s' "$health" | grep -F '"launch_phase":"shareable-prompts-v1"' >/dev/null; then
+            if printf '%s' "$health" | grep -F '"launch_phase":"shareable-prompts-v1"' >/dev/null \
+              && printf '%s' "$health" | grep -F '"content_scale":"content-safety-v1"' >/dev/null \
+              && printf '%s' "$health" | grep -F '"automation":"dynamic-schedule-v1"' >/dev/null; then
               break
             fi
             if [ "$attempt" -eq 24 ]; then
-              echo 'The Phase 5 Worker was not observed in production.' >&2
+              echo 'The Phase 6 Worker was not observed in production.' >&2
               exit 1
             fi
             sleep 5
