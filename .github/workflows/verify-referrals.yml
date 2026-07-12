@@ -1,0 +1,117 @@
+name: Verify PromptStan Referrals
+
+on:
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-referrals:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Wait for the branch Worker preview
+        env:
+          HEAD_BRANCH: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+          branch_slug="$(printf '%s' "$HEAD_BRANCH" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9-]+/-/g; s/^-+|-+$//g')"
+          APP_BASE="https://${branch_slug}-promptstan-api.hhhh46529.workers.dev"
+          printf '%s' "$APP_BASE" >/tmp/app-base.txt
+
+          for attempt in $(seq 1 36); do
+            health="$(curl -fsSL "$APP_BASE/api/health" 2>/dev/null || true)"
+            printf '%s\n' "$health"
+            if printf '%s' "$health" | grep -F '"launch_phase":"shareable-prompts-v1"' >/dev/null \
+              && printf '%s' "$health" | grep -F '"growth_phase":"privacy-analytics-v1"' >/dev/null; then
+              exit 0
+            fi
+            sleep 5
+          done
+
+          echo "Referral preview did not become available at $APP_BASE" >&2
+          exit 1
+
+      - name: Verify referral CORS preflight
+        run: |
+          set -euo pipefail
+          APP_BASE="$(cat /tmp/app-base.txt)"
+          curl -sS -D /tmp/referral-preflight.txt -o /dev/null \
+            -X OPTIONS "$APP_BASE/api/referral-event" \
+            -H 'Origin: https://promptstan.pages.dev' \
+            -H 'Access-Control-Request-Method: POST' \
+            -H 'Access-Control-Request-Headers: content-type'
+
+          grep -E '^HTTP/.* 204' /tmp/referral-preflight.txt
+          grep -iF 'access-control-allow-origin: *' /tmp/referral-preflight.txt
+          grep -iF 'access-control-allow-methods: GET,POST,PUT,DELETE,OPTIONS' /tmp/referral-preflight.txt
+
+      - name: Select a real prompt slug
+        run: |
+          set -euo pipefail
+          APP_BASE="$(cat /tmp/app-base.txt)"
+          curl -fsSL -X POST \
+            -H 'x-promptstan-bootstrap: empty-library-v1' \
+            "$APP_BASE/api/bootstrap" >/tmp/bootstrap.json
+
+          curl -fsSL "$APP_BASE/api/prompts" >/tmp/prompts.json
+          node <<'NODE'
+          const fs = require('fs');
+          const prompts = JSON.parse(fs.readFileSync('/tmp/prompts.json', 'utf8'));
+          if (!Array.isArray(prompts) || !prompts.length) throw new Error('No prompts available');
+          const prompt = prompts.find((item) => item.slug);
+          if (!prompt) throw new Error('No prompt slug available');
+          fs.writeFileSync('/tmp/prompt-slug.txt', prompt.slug);
+          NODE
+
+      - name: Record a WhatsApp campaign visit
+        run: |
+          set -euo pipefail
+          APP_BASE="$(cat /tmp/app-base.txt)"
+          slug="$(cat /tmp/prompt-slug.txt)"
+
+          curl -fsSL -X POST "$APP_BASE/api/referral-event" \
+            -H 'content-type: application/json' \
+            --data "{\"source\":\"whatsapp\",\"medium\":\"social\",\"campaign\":\"ci-launch-test\",\"slug\":\"$slug\",\"referrer\":\"https://wa.me/\"}" \
+            | tee /tmp/referral.json
+
+          grep -F '"ok":true' /tmp/referral.json
+          grep -F '"source":"whatsapp"' /tmp/referral.json
+          grep -F '"campaign":"ci-launch-test"' /tmp/referral.json
+
+      - name: Verify tracked prompt URL and admin protection
+        run: |
+          set -euo pipefail
+          APP_BASE="$(cat /tmp/app-base.txt)"
+          slug="$(cat /tmp/prompt-slug.txt)"
+
+          curl -fsSL "$APP_BASE/prompt/$slug?ref=whatsapp&utm_source=whatsapp&utm_medium=social&utm_campaign=ci-launch-test&utm_content=$slug" \
+            -o /tmp/tracked-prompt.html
+          grep -F '<meta property="og:type" content="article"' /tmp/tracked-prompt.html
+          grep -F "/prompt/$slug" /tmp/tracked-prompt.html
+
+          status="$(curl -sS -o /tmp/analytics-unauthorized.json -w '%{http_code}' "$APP_BASE/api/admin/analytics")"
+          test "$status" = "401"
+          grep -F '"error":"Unauthorized"' /tmp/analytics-unauthorized.json
+
+      - name: Verify campaign UI is bundled
+        run: |
+          set -euo pipefail
+          APP_BASE="$(cat /tmp/app-base.txt)"
+          html="$(curl -fsSL "$APP_BASE/admin")"
+          asset="$(printf '%s' "$html" | grep -oE 'src="[^"]+\.js"' | head -n 1 | cut -d'"' -f2)"
+          test -n "$asset"
+          case "$asset" in
+            http*) asset_url="$asset" ;;
+            /*) asset_url="$APP_BASE$asset" ;;
+            *) asset_url="$APP_BASE/$asset" ;;
+          esac
+          curl -fsSL "$asset_url" -o /tmp/promptstan-app.js
+          grep -F 'Campaign Link Builder' /tmp/promptstan-app.js
+          grep -F 'Top traffic sources' /tmp/promptstan-app.js
+          grep -F 'WhatsApp' /tmp/promptstan-app.js
