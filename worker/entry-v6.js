@@ -3,7 +3,6 @@ import { ensurePromptImageColumns, ensurePromptImages, getPromptById, getConfigu
 import {
   CONTENT_SCALE_VERSION,
   ROTATION_COUNT,
-  analyzePromptCandidate,
   ensureContentScaleSchema,
   getContentScaleStatus,
   getNextRotationCandidate,
@@ -11,6 +10,20 @@ import {
   recordContentScaleEvent,
   scanExistingDuplicates
 } from './content-scale.js';
+import {
+  AUTOMATION_VERSION,
+  getAutomationHistory,
+  getAutomationSettings,
+  getImageQueueStatus,
+  getLocalScheduleParts,
+  getNextScheduledPosting,
+  hasAutomationRun,
+  processImageBatch,
+  recordAutomationRun,
+  saveAutomationSettings,
+  shouldRunImageBatch,
+  shouldRunPosting
+} from './automation.js';
 
 const JSON_HEADERS = {
   'content-type': 'application/json; charset=utf-8',
@@ -33,7 +46,8 @@ export default {
         launch_phase: 'shareable-prompts-v1',
         growth_phase: 'privacy-analytics-v1',
         content_scale: CONTENT_SCALE_VERSION,
-        rotation_count: ROTATION_COUNT
+        rotation_count: ROTATION_COUNT,
+        automation: AUTOMATION_VERSION
       });
     }
 
@@ -45,8 +59,63 @@ export default {
       return adminOnly(request, env, async () => json(await scanExistingDuplicates(env)));
     }
 
+    if (url.pathname === '/api/admin/automation/settings' && request.method === 'GET') {
+      return adminOnly(request, env, async () => {
+        const settings = await getAutomationSettings(env);
+        return json({
+          ok: true,
+          version: AUTOMATION_VERSION,
+          settings,
+          next_posting: getNextScheduledPosting(settings)
+        });
+      });
+    }
+
+    if (url.pathname === '/api/admin/automation/settings' && request.method === 'PUT') {
+      return adminOnly(request, env, async () => {
+        const body = await readJson(request);
+        const settings = await saveAutomationSettings(env, body);
+        return json({
+          ok: true,
+          version: AUTOMATION_VERSION,
+          settings,
+          next_posting: getNextScheduledPosting(settings)
+        });
+      });
+    }
+
+    if (url.pathname === '/api/admin/automation/history' && request.method === 'GET') {
+      return adminOnly(request, env, async () => json({
+        ok: true,
+        history: await getAutomationHistory(env, Number(url.searchParams.get('limit') || 20))
+      }));
+    }
+
+    if (url.pathname === '/api/admin/images/queue' && request.method === 'GET') {
+      return adminOnly(request, env, async () => json({
+        ok: true,
+        queue: await getImageQueueStatus(env)
+      }));
+    }
+
+    if (url.pathname === '/api/admin/images/batch' && request.method === 'POST') {
+      return adminOnly(request, env, async () => {
+        const body = await readJson(request);
+        const settings = await getAutomationSettings(env);
+        const limit = Number(body.limit || settings.image_batch_size || 1);
+        return json(await processImageBatch(env, limit, { source: 'manual' }));
+      });
+    }
+
     if (url.pathname === '/api/admin/daily/run' && request.method === 'POST') {
-      return adminOnly(request, env, async () => json(await publishScaledDailyPrompt(env)));
+      return adminOnly(request, env, async () => {
+        const settings = await getAutomationSettings(env);
+        const local = getLocalScheduleParts(settings);
+        return json(await publishScaledDailyPrompt(env, {
+          dateKey: local.date,
+          source: 'manual'
+        }));
+      });
     }
 
     if (url.pathname === '/api/admin/prompts' && request.method === 'POST') {
@@ -63,9 +132,63 @@ export default {
 
   async scheduled(event, env, ctx) {
     if (env.DAILY_POST_ENABLED === 'false') return;
-    ctx.waitUntil(publishScaledDailyPrompt(env));
+    const now = event?.scheduledTime ? new Date(event.scheduledTime) : new Date();
+    ctx.waitUntil(runScheduledAutomation(env, now));
   }
 };
+
+async function runScheduledAutomation(env, now = new Date()) {
+  const settings = await getAutomationSettings(env);
+  const local = getLocalScheduleParts(settings, now);
+  const result = {
+    ok: true,
+    local,
+    posting: null,
+    image_batch: null
+  };
+
+  if (shouldRunPosting(settings, now)) {
+    const alreadyRan = await hasAutomationRun(env, 'posting', local.date);
+    if (!alreadyRan) {
+      const posting = await publishScaledDailyPrompt(env, {
+        dateKey: local.date,
+        source: 'scheduled'
+      });
+      result.posting = posting;
+      await recordAutomationRun(
+        env,
+        'posting',
+        'scheduled',
+        local.date,
+        posting.ok ? (posting.skipped ? 'completed' : 'completed') : 'partial',
+        {
+          processed: posting.prompt_id ? 1 : 0,
+          succeeded: posting.ok ? 1 : 0,
+          failed: posting.ok ? 0 : 1,
+          slug: posting.slug || null,
+          reason: posting.reason || null,
+          quality_score: posting.quality_score || 0
+        }
+      );
+    } else {
+      result.posting = { ok: true, skipped: true, reason: 'Posting automation already ran for this local date' };
+    }
+  }
+
+  if (shouldRunImageBatch(settings, now)) {
+    const alreadyRan = await hasAutomationRun(env, 'image_batch', local.date);
+    if (!alreadyRan) {
+      result.image_batch = await processImageBatch(env, settings.image_batch_size, {
+        source: 'scheduled',
+        local_date: local.date
+      });
+    } else {
+      result.image_batch = { ok: true, skipped: true, reason: 'Image batch already ran for this local date' };
+    }
+  }
+
+  return result;
+}
 
 async function protectPromptWrite(request, env, ctx, editingId) {
   if (!requireAdmin(request, env)) return json({ error: 'Unauthorized' }, 401);
@@ -163,18 +286,18 @@ async function protectPromptWrite(request, env, ctx, editingId) {
   return new Response(JSON.stringify(data), { status: response.status, headers });
 }
 
-async function publishScaledDailyPrompt(env) {
+export async function publishScaledDailyPrompt(env, options = {}) {
   await Promise.all([ensurePromptImageColumns(env), ensureContentScaleSchema(env)]);
-  const today = new Date().toISOString().slice(0, 10);
+  const dateKey = normalizeDateKey(options.dateKey) || new Date().toISOString().slice(0, 10);
   const existingToday = await env.DB.prepare(
     'SELECT id, slug FROM prompts WHERE slug LIKE ? LIMIT 1'
-  ).bind(`daily-${today}-%`).first();
+  ).bind(`daily-${dateKey}-%`).first();
 
   if (existingToday) {
     return {
       ok: true,
       skipped: true,
-      reason: 'Already published today',
+      reason: 'Already published for this scheduled date',
       prompt_id: existingToday.id,
       slug: existingToday.slug
     };
@@ -193,7 +316,7 @@ async function publishScaledDailyPrompt(env) {
   }
 
   const category = await getOrCreateCategory(env, candidate.category);
-  const slug = `daily-${today}-${candidate.rotation_key}`;
+  const slug = `daily-${dateKey}-${candidate.rotation_key}`;
   const analysis = candidate.analysis;
 
   const result = await env.DB.prepare(`
@@ -250,7 +373,8 @@ async function publishScaledDailyPrompt(env) {
     quality_score: analysis.quality.score,
     details: JSON.stringify({
       rotation_key: candidate.rotation_key,
-      searched: candidate.searched
+      searched: candidate.searched,
+      source: options.source || 'manual'
     })
   });
 
@@ -261,6 +385,7 @@ async function publishScaledDailyPrompt(env) {
     ok: imageResult.ok,
     prompt_id: promptId,
     slug,
+    scheduled_date: dateKey,
     rotation_key: candidate.rotation_key,
     quality_score: analysis.quality.score,
     duplicate_checked: true,
@@ -321,6 +446,19 @@ async function adminOnly(request, env, handler) {
   } catch (error) {
     return json({ error: String(error?.message || error || 'Content scale operation failed').slice(0, 500) }, 500);
   }
+}
+
+async function readJson(request) {
+  try {
+    return await request.json();
+  } catch {
+    return {};
+  }
+}
+
+function normalizeDateKey(value) {
+  const text = String(value || '').trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : null;
 }
 
 function slugify(value) {

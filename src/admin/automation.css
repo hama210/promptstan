@@ -1,0 +1,404 @@
+.automationCard {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(125,211,252,.2);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(125,211,252,.12), transparent 34%),
+    radial-gradient(circle at 0% 100%, rgba(139,92,246,.13), transparent 38%),
+    rgba(20,20,26,.92);
+}
+
+.automationHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.automationBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 12px;
+  padding: 7px 11px;
+  border: 1px solid rgba(125,211,252,.3);
+  border-radius: 999px;
+  background: rgba(125,211,252,.08);
+  color: #7dd3fc;
+  font-size: .78rem;
+  font-weight: 850;
+}
+
+.automationState {
+  min-width: 190px;
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  padding: 17px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 20px;
+  background: rgba(255,255,255,.04);
+  color: #a1a1aa;
+}
+
+.automationState.active {
+  border-color: rgba(0,245,160,.28);
+  background: rgba(0,245,160,.07);
+  color: #00f5a0;
+}
+
+.automationState span {
+  font-size: .72rem;
+  color: #9393a0;
+}
+
+.automationGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.automationSection {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 22px;
+  background: rgba(255,255,255,.035);
+}
+
+.automationSectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.automationSectionTitle > svg {
+  color: #7dd3fc;
+}
+
+.automationSectionTitle div {
+  display: grid;
+  gap: 3px;
+}
+
+.automationSectionTitle span {
+  color: #91919e;
+  font-size: .75rem;
+}
+
+.automationToggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.045);
+  color: #d7d7df;
+}
+
+.automationToggle input {
+  width: 20px;
+  height: 20px;
+  accent-color: #00f5a0;
+}
+
+.automationFields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 13px;
+}
+
+.automationFields label {
+  display: grid;
+  gap: 7px;
+  color: #c6c6d0;
+  font-size: .8rem;
+}
+
+.automationFields select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 14px;
+  background: rgba(255,255,255,.06);
+  color: #fff;
+  padding: 10px 12px;
+}
+
+.automationDays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 13px;
+}
+
+.automationDays button {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  padding: 9px 4px;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 12px;
+  background: rgba(255,255,255,.035);
+  color: #9d9daa;
+}
+
+.automationDays button.active {
+  border-color: rgba(0,245,160,.35);
+  background: rgba(0,245,160,.09);
+  color: #00f5a0;
+}
+
+.automationDays button span {
+  overflow: hidden;
+  font-size: .62rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nextSchedule {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 13px;
+  padding: 12px;
+  border: 1px solid rgba(125,211,252,.18);
+  border-radius: 15px;
+  background: rgba(125,211,252,.055);
+}
+
+.nextSchedule > svg {
+  color: #7dd3fc;
+}
+
+.nextSchedule div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.nextSchedule span {
+  color: #92929f;
+  font-size: .72rem;
+}
+
+.nextSchedule strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.imageQueueStats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 13px;
+}
+
+.imageQueueStats div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  padding: 10px 7px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 13px;
+  background: rgba(255,255,255,.035);
+  text-align: center;
+}
+
+.imageQueueStats span {
+  color: #8f8f9d;
+  font-size: .65rem;
+}
+
+.imageQueueStats strong {
+  color: #f5f5f8;
+  font-size: 1.15rem;
+}
+
+.imageQueuePreview {
+  margin-top: 13px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+
+.imageQueuePreview > span {
+  display: block;
+  margin-bottom: 8px;
+  color: #92929f;
+  font-size: .72rem;
+}
+
+.imageQueuePreview > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+}
+
+.imageQueuePreview > div + div {
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+
+.imageQueuePreview strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.imageQueuePreview small {
+  color: #fbbf24;
+}
+
+.imageQueuePreview p {
+  color: #858593;
+}
+
+.automationActions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.automationActions button {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 15px;
+  background: rgba(255,255,255,.055);
+  color: #f4f4f8;
+  font-weight: 850;
+}
+
+.automationActions button:hover {
+  border-color: rgba(125,211,252,.42);
+  background: rgba(125,211,252,.08);
+}
+
+.automationActions .automationSave {
+  border: 0;
+  background: linear-gradient(135deg, #8b5cf6, #00f5a0);
+  color: #07100d;
+}
+
+.automationMessage {
+  margin-top: 14px;
+  margin-bottom: 0;
+}
+
+.automationHistory {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+
+.automationHistory h3 {
+  margin: 0 0 10px;
+  font-size: .95rem;
+}
+
+.automationHistory > div {
+  display: grid;
+  gap: 7px;
+}
+
+.automationHistory article {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  border-radius: 13px;
+  background: rgba(255,255,255,.035);
+}
+
+.automationHistory article strong,
+.automationHistory article small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.automationHistory article small {
+  color: #8d8d99;
+}
+
+.automationHistory article b {
+  color: #7dd3fc;
+}
+
+.runStatus {
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.07);
+  color: #a1a1aa;
+  font-size: .65rem;
+}
+
+.runStatus.completed {
+  background: rgba(0,245,160,.09);
+  color: #00f5a0;
+}
+
+.runStatus.partial,
+.runStatus.failed {
+  background: rgba(251,191,36,.1);
+  color: #fbbf24;
+}
+
+@media (max-width: 900px) {
+  .automationGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .automationHeader {
+    flex-direction: column;
+  }
+
+  .automationState {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: auto auto 1fr;
+    align-items: center;
+    justify-items: start;
+  }
+
+  .automationActions {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .automationFields {
+    grid-template-columns: 1fr;
+  }
+
+  .automationDays {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .imageQueueStats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .automationHistory article {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .automationHistory article small {
+    grid-column: 2 / -1;
+  }
+}
