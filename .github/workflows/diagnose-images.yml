@@ -19,11 +19,36 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Apply the idempotent starter seed
+        id: seed
+        continue-on-error: true
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           wranglerVersion: "4"
-          command: d1 execute promptstan-db --remote --file database/migrations/0003_seed_starter_prompt.sql
+          command: d1 execute promptstan-db --remote --file=database/migrations/0003_seed_starter_prompt.sql
+
+      - name: Save authenticated Wrangler output
+        if: always()
+        env:
+          SEED_OUTCOME: ${{ steps.seed.outcome }}
+          SEED_OUTPUT: ${{ steps.seed.outputs.command-output }}
+          SEED_ERROR: ${{ steps.seed.outputs.command-stderr }}
+        run: |
+          printf 'outcome=%s\n\nstdout:\n%s\n\nstderr:\n%s\n' "$SEED_OUTCOME" "$SEED_OUTPUT" "$SEED_ERROR" | tee seed-output.txt
+
+      - name: Upload authenticated Wrangler output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: promptstan-authenticated-d1-seed
+          path: seed-output.txt
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Require a successful D1 seed
+        env:
+          SEED_OUTCOME: ${{ steps.seed.outcome }}
+        run: test "$SEED_OUTCOME" = "success"
 
       - name: Verify D1 through Wrangler
         uses: cloudflare/wrangler-action@v3
