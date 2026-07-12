@@ -15,6 +15,9 @@
 .adminCardTitle { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .adminCardTitle h2 { margin: 0; }
 .adminTokenRow { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+.adminRepairActions { display: flex; flex-wrap: wrap; align-items: center; }
+.adminRepairActions button { flex: 1 1 210px; min-height: 50px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.adminRepairActions span { display: inline-flex; align-items: center; gap: 7px; color: #00f5a0; }
 .adminTokenRow input, .promptForm input, .promptForm textarea, .promptForm select, .adminSearch input { width: 100%; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.06); color: white; border-radius: 16px; padding: 12px 14px; outline: 0; }
 .adminTokenRow button, .dailyCard button, .submitPrompt, .cancelEdit, .adminPromptActions button, .pagination button { border: 0; border-radius: 16px; padding: 12px 18px; background: linear-gradient(135deg, #8b5cf6, #00f5a0); color: #07100d; font-weight: 900; }
 .adminMessage { max-width: 1180px; margin: 0 auto 18px; border-radius: 18px; padding: 14px 16px; background: rgba(0,245,160,.12); border: 1px solid rgba(0,245,160,.28); color: #00f5a0; }
@@ -65,4 +68,4 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 @media (max-width: 900px) { .adminPromptItem { grid-template-columns: auto 1fr; align-items: flex-start; } .adminPromptActions { grid-column: 1 / -1; width: 100%; } .adminPromptActions button { flex: 1; justify-content: center; } }
 @media (max-width: 800px) { .adminHero, .dailyCard { flex-direction: column; align-items: stretch; } .adminGrid, .analyticsLists { grid-template-columns: repeat(2, 1fr); } .promptForm { grid-template-columns: 1fr; } }
 @media (max-width: 620px) { .analyticsLists { grid-template-columns: 1fr; } }
-@media (max-width: 520px) { .adminGrid { grid-template-columns: 1fr; } .adminTokenRow, .adminSearch { grid-template-columns: 1fr; } }
+@media (max-width: 520px) { .adminGrid { grid-template-columns: 1fr; } .adminTokenRow:not(.adminRepairActions), .adminSearch { grid-template-columns: 1fr; } .adminRepairActions button { flex-basis: 100%; } }
