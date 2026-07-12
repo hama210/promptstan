@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BarChart3, RefreshCw, Search, Share2, ShieldCheck, Wand2 } from 'lucide-react';
+import { BarChart3, DatabaseBackup, RefreshCw, Search, Share2, ShieldCheck, Wand2 } from 'lucide-react';
 import AdminPanelV4 from './AdminPanelV4.jsx';
 
 const API_BASE = window.location.hostname.includes('workers.dev') ? window.location.origin : 'https://promptstan-api.hhhh46529.workers.dev';
@@ -22,6 +22,15 @@ export default function AdminPanelV5() {
     return token ? { Authorization: `Bearer ${token}` } : {};
   }
 
+  async function readJson(response) {
+    const text = await response.text();
+    try {
+      return text ? JSON.parse(text) : {};
+    } catch {
+      throw new Error(`API returned an invalid response (${response.status}).`);
+    }
+  }
+
   async function loadAnalytics(showStatus = false) {
     if (!getToken()) {
       if (showStatus) setMessage('Save ADMIN_TOKEN in the panel first.');
@@ -38,12 +47,12 @@ export default function AdminPanelV5() {
         headers: getAuthHeaders(),
         cache: 'no-store'
       });
-      const data = await response.json();
+      const data = await readJson(response);
       if (!response.ok) throw new Error(data.error || 'Analytics failed');
       setAnalytics(data);
       if (showStatus) setMessage('Growth analytics updated.');
     } catch (error) {
-      if (showStatus) setMessage(error.message);
+      if (showStatus) setMessage(error.message || 'Analytics connection failed.');
     } finally {
       if (showStatus) setWorking(false);
     }
@@ -59,15 +68,40 @@ export default function AdminPanelV5() {
     setMessage('Checking Cloudflare bindings...');
     try {
       const response = await fetch(`${API_BASE}/api/admin/system`, { headers: getAuthHeaders(), cache: 'no-store' });
-      const data = await response.json();
+      const data = await readJson(response);
       if (!response.ok) throw new Error(data.error || 'System check failed');
       const status = data.status || {};
       const provider = status.image_provider === 'openai' ? 'OpenAI' : status.image_provider === 'workers-ai' ? 'Workers AI' : 'Missing';
       setMessage(`D1 ${status.database ? '✅' : '❌'} · R2 ${status.r2 ? '✅' : '❌'} · Images: ${provider} ${status.image_provider ? '✅' : '❌'} · Analytics ${status.growth_phase ? '✅' : '❌'} · Admin token ${status.admin_token ? '✅' : '❌'}`);
       await loadAnalytics();
     } catch (error) {
-      setMessage(error.message);
+      setMessage(error.message || 'System connection failed.');
     } finally {
+      setWorking(false);
+    }
+  }
+
+  async function restoreLibrary() {
+    if (!getToken()) {
+      setMessage('Save ADMIN_TOKEN in the panel first.');
+      return;
+    }
+
+    setWorking(true);
+    setMessage('Restoring every known PromptStan prompt into D1...');
+    try {
+      const response = await fetch(`${API_BASE}/api/admin/library/restore`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        cache: 'no-store'
+      });
+      const data = await readJson(response);
+      if (!response.ok) throw new Error(data.error || 'Library restoration failed');
+
+      setMessage(`Library restored ✅ ${data.inserted || 0} added, ${data.existing || 0} already existed, ${data.total_prompts || 0} total prompts. Reloading...`);
+      window.setTimeout(() => window.location.reload(), 1200);
+    } catch (error) {
+      setMessage(error.message || 'Library restoration failed.');
       setWorking(false);
     }
   }
@@ -82,7 +116,7 @@ export default function AdminPanelV5() {
     setMessage('Finding prompts with missing or failed images...');
     try {
       const response = await fetch(`${API_BASE}/api/prompts`, { cache: 'no-store' });
-      const prompts = await response.json();
+      const prompts = await readJson(response);
       if (!response.ok || !Array.isArray(prompts)) throw new Error(prompts.error || 'Could not load prompts');
 
       const targets = prompts.filter((prompt) => !prompt.before_image_url || !prompt.after_image_url || prompt.image_status === 'failed');
@@ -104,7 +138,7 @@ export default function AdminPanelV5() {
 
       setMessage(`Image generation started for ${started} prompt(s)${failed ? `; ${failed} failed to start` : ''}. Refresh after generation finishes.`);
     } catch (error) {
-      setMessage(error.message);
+      setMessage(error.message || 'Image repair failed.');
     } finally {
       setWorking(false);
     }
@@ -114,10 +148,11 @@ export default function AdminPanelV5() {
 
   return <>
     <section className="adminCard" style={{ margin: '20px auto 0', maxWidth: 1180 }} dir="rtl">
-      <div className="adminCardTitle"><ShieldCheck size={22} /><h2>Cloudflare &amp; Image Repair</h2></div>
-      <p>پشکنینی D1، R2 و Workers AI بکە، یان وێنەکانی Before/After ـی نەبوو یان شکستخواردوو دووبارە دروست بکەرەوە.</p>
-      <div className="adminTokenRow">
+      <div className="adminCardTitle"><ShieldCheck size={22} /><h2>Cloudflare &amp; Library Repair</h2></div>
+      <p>پشکنینی D1، R2 و Workers AI بکە، هەموو پرۆمپتە ناسراوەکان بگەڕێنەرەوە، یان وێنەکانی Before/After دووبارە دروست بکەرەوە.</p>
+      <div className="adminTokenRow adminRepairActions">
         <button type="button" onClick={checkSystem} disabled={working}><ShieldCheck size={17} /> Check system</button>
+        <button type="button" onClick={restoreLibrary} disabled={working}><DatabaseBackup size={17} /> Restore all prompts</button>
         <button type="button" onClick={retryMissingImages} disabled={working}><Wand2 size={17} /> Retry missing images</button>
         <button type="button" onClick={() => loadAnalytics(true)} disabled={working}><BarChart3 size={17} /> Refresh analytics</button>
         {working && <span><RefreshCw size={16} /> Working...</span>}
@@ -127,21 +162,21 @@ export default function AdminPanelV5() {
 
     <section className="adminCard growthAnalytics" style={{ margin: '16px auto 0', maxWidth: 1180 }} dir="rtl">
       <div className="adminCardTitle"><BarChart3 size={22} /><h2>Growth Analytics</h2></div>
-      <p>ئەم ئامارانە تەنها Share، گەڕان، ناوی پرۆمپت و کاتی ڕووداوەکە تۆمار دەکەن؛ IP یان زانیاری کەسی تۆمار ناکرێت.</p>
+      <p>ئەمە تەنها ژمارەی Share و گەڕان پیشان دەدات. IP یان زانیاری کەسی تۆمار ناکرێت.</p>
 
       <div className="adminGrid analyticsStats">
-        <div className="adminCard statCard"><Share2 size={26} /><span>Total shares</span><strong>{totals.shares ?? 0}</strong><small>{totals.shares_7d ?? 0} last 7 days</small></div>
-        <div className="adminCard statCard"><Search size={26} /><span>Total searches</span><strong>{totals.searches ?? 0}</strong><small>{totals.searches_7d ?? 0} last 7 days</small></div>
+        <div className="adminCard statCard"><Share2 size={26} /><span>Total shares</span><strong>{analytics ? totals.shares ?? 0 : '—'}</strong><small>{analytics ? `${totals.shares_7d ?? 0} last 7 days` : 'Refresh after saving ADMIN_TOKEN'}</small></div>
+        <div className="adminCard statCard"><Search size={26} /><span>Total searches</span><strong>{analytics ? totals.searches ?? 0 : '—'}</strong><small>{analytics ? `${totals.searches_7d ?? 0} last 7 days` : 'Refresh after saving ADMIN_TOKEN'}</small></div>
       </div>
 
       <div className="analyticsLists">
         <div>
           <h3><Share2 size={18} /> Top shared prompts</h3>
-          <ol>{(analytics?.top_shares || []).length ? analytics.top_shares.map((item) => <li key={item.slug || item.title}><span>{item.title || item.slug || 'Unknown prompt'}</span><strong>{item.shares}</strong></li>) : <li><span>No shares recorded yet.</span></li>}</ol>
+          <ol>{analytics && (analytics.top_shares || []).length ? analytics.top_shares.map((item) => <li key={item.slug || item.title}><span>{item.title || item.slug || 'Unknown prompt'}</span><strong>{item.shares}</strong></li>) : <li><span>{analytics ? 'No shares recorded yet.' : 'Analytics not loaded yet.'}</span></li>}</ol>
         </div>
         <div>
           <h3><Search size={18} /> Top searches</h3>
-          <ol>{(analytics?.top_searches || []).length ? analytics.top_searches.map((item) => <li key={item.query}><span>{item.query}</span><strong>{item.searches}</strong></li>) : <li><span>No searches recorded yet.</span></li>}</ol>
+          <ol>{analytics && (analytics.top_searches || []).length ? analytics.top_searches.map((item) => <li key={item.query}><span>{item.query}</span><strong>{item.searches}</strong></li>) : <li><span>{analytics ? 'No searches recorded yet.' : 'Analytics not loaded yet.'}</span></li>}</ol>
         </div>
       </div>
     </section>
