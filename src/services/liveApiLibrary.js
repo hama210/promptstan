@@ -37,11 +37,13 @@ export async function getPromptBySlug(slug) {
 
   try {
     const response = await fetch(`${API_BASE}/api/prompts/${encodeURIComponent(safeSlug)}`);
-    if (!response.ok) return null;
-    return normalizePrompt(await response.json());
-  } catch {
-    return null;
-  }
+    if (response.ok) return normalizePrompt(await response.json());
+  } catch {}
+
+  const fallback = fallbackPrompts
+    .map(normalizePrompt)
+    .find((prompt) => prompt.slug === safeSlug);
+  return fallback || null;
 }
 
 export async function searchLibrary(query) {
