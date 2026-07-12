@@ -1,17 +1,34 @@
-import { useEffect, useState } from 'react';
-import { BarChart3, DatabaseBackup, RefreshCw, Search, Share2, ShieldCheck, Wand2 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { BarChart3, Copy, DatabaseBackup, Link2, MousePointerClick, RefreshCw, Search, Share2, ShieldCheck, Wand2 } from 'lucide-react';
 import AdminPanelV4 from './AdminPanelV4.jsx';
 
 const API_BASE = window.location.hostname.includes('workers.dev') ? window.location.origin : 'https://promptstan-api.hhhh46529.workers.dev';
+const PUBLIC_SITE = 'https://promptstan.pages.dev';
 
 export default function AdminPanelV5() {
   const [message, setMessage] = useState('');
   const [working, setWorking] = useState(false);
   const [analytics, setAnalytics] = useState(null);
+  const [campaignSource, setCampaignSource] = useState('whatsapp');
+  const [campaignName, setCampaignName] = useState('prompt-share');
+  const [campaignSlug, setCampaignSlug] = useState('');
 
   useEffect(() => {
     if (getToken()) loadAnalytics();
   }, []);
+
+  const campaignLink = useMemo(() => {
+    const source = cleanToken(campaignSource) || 'custom';
+    const campaign = cleanToken(campaignName) || 'campaign';
+    const slug = cleanToken(campaignSlug);
+    const url = new URL(slug ? `/prompt/${encodeURIComponent(slug)}` : '/', PUBLIC_SITE);
+    url.searchParams.set('ref', source);
+    url.searchParams.set('utm_source', source);
+    url.searchParams.set('utm_medium', socialSource(source) ? 'social' : 'referral');
+    url.searchParams.set('utm_campaign', campaign);
+    if (slug) url.searchParams.set('utm_content', slug);
+    return url.toString();
+  }, [campaignSource, campaignName, campaignSlug]);
 
   function getToken() {
     return localStorage.getItem('promptstan-admin-token') || '';
@@ -72,7 +89,7 @@ export default function AdminPanelV5() {
       if (!response.ok) throw new Error(data.error || 'System check failed');
       const status = data.status || {};
       const provider = status.image_provider === 'openai' ? 'OpenAI' : status.image_provider === 'workers-ai' ? 'Workers AI' : 'Missing';
-      setMessage(`D1 ${status.database ? '✅' : '❌'} · R2 ${status.r2 ? '✅' : '❌'} · Images: ${provider} ${status.image_provider ? '✅' : '❌'} · Analytics ${status.growth_phase ? '✅' : '❌'} · Admin token ${status.admin_token ? '✅' : '❌'}`);
+      setMessage(`D1 ${status.database ? '✅' : '❌'} · R2 ${status.r2 ? '✅' : '❌'} · Images: ${provider} ${status.image_provider ? '✅' : '❌'} · Analytics ${status.growth_phase ? '✅' : '❌'} · Campaigns ✅ · Admin token ${status.admin_token ? '✅' : '❌'}`);
       await loadAnalytics();
     } catch (error) {
       setMessage(error.message || 'System connection failed.');
@@ -144,6 +161,15 @@ export default function AdminPanelV5() {
     }
   }
 
+  async function copyCampaignLink() {
+    try {
+      await navigator.clipboard.writeText(campaignLink);
+      setMessage('Campaign link copied ✅');
+    } catch {
+      setMessage('Could not copy automatically. Press and hold the link below to copy it.');
+    }
+  }
+
   const totals = analytics?.totals || {};
 
   return <>
@@ -161,26 +187,70 @@ export default function AdminPanelV5() {
     </section>
 
     <section className="adminCard growthAnalytics" style={{ margin: '16px auto 0', maxWidth: 1180 }} dir="rtl">
-      <div className="adminCardTitle"><BarChart3 size={22} /><h2>Growth Analytics</h2></div>
-      <p>ئەمە تەنها ژمارەی Share و گەڕان پیشان دەدات. IP یان زانیاری کەسی تۆمار ناکرێت.</p>
+      <div className="adminCardTitle"><BarChart3 size={22} /><h2>Growth &amp; Referral Analytics</h2></div>
+      <p>Share، گەڕان، سەرچاوەی هاتنی بەکارهێنەر و ناوی campaign پیشان دەدات. IP یان زانیاری کەسی تۆمار ناکرێت.</p>
 
-      <div className="adminGrid analyticsStats">
+      <div className="adminGrid analyticsStats campaignStats">
         <div className="adminCard statCard"><Share2 size={26} /><span>Total shares</span><strong>{analytics ? totals.shares ?? 0 : '—'}</strong><small>{analytics ? `${totals.shares_7d ?? 0} last 7 days` : 'Refresh after saving ADMIN_TOKEN'}</small></div>
         <div className="adminCard statCard"><Search size={26} /><span>Total searches</span><strong>{analytics ? totals.searches ?? 0 : '—'}</strong><small>{analytics ? `${totals.searches_7d ?? 0} last 7 days` : 'Refresh after saving ADMIN_TOKEN'}</small></div>
+        <div className="adminCard statCard"><MousePointerClick size={26} /><span>Referral visits</span><strong>{analytics ? totals.referrals ?? 0 : '—'}</strong><small>{analytics ? `${totals.referrals_7d ?? 0} last 7 days` : 'Tracked link arrivals'}</small></div>
       </div>
 
-      <div className="analyticsLists">
-        <div>
-          <h3><Share2 size={18} /> Top shared prompts</h3>
-          <ol>{analytics && (analytics.top_shares || []).length ? analytics.top_shares.map((item) => <li key={item.slug || item.title}><span>{item.title || item.slug || 'Unknown prompt'}</span><strong>{item.shares}</strong></li>) : <li><span>{analytics ? 'No shares recorded yet.' : 'Analytics not loaded yet.'}</span></li>}</ol>
-        </div>
-        <div>
-          <h3><Search size={18} /> Top searches</h3>
-          <ol>{analytics && (analytics.top_searches || []).length ? analytics.top_searches.map((item) => <li key={item.query}><span>{item.query}</span><strong>{item.searches}</strong></li>) : <li><span>{analytics ? 'No searches recorded yet.' : 'Analytics not loaded yet.'}</span></li>}</ol>
-        </div>
+      <div className="analyticsLists campaignAnalyticsLists">
+        <AnalyticsList icon={<Share2 size={18} />} title="Top shared prompts" items={analytics?.top_shares} empty={analytics ? 'No shares recorded yet.' : 'Analytics not loaded yet.'} label={(item) => item.title || item.slug || 'Unknown prompt'} value={(item) => item.shares} />
+        <AnalyticsList icon={<Search size={18} />} title="Top searches" items={analytics?.top_searches} empty={analytics ? 'No searches recorded yet.' : 'Analytics not loaded yet.'} label={(item) => item.query} value={(item) => item.searches} />
+        <AnalyticsList icon={<MousePointerClick size={18} />} title="Top traffic sources" items={analytics?.top_sources} empty={analytics ? 'No referral visits recorded yet.' : 'Analytics not loaded yet.'} label={(item) => item.source} value={(item) => item.referrals} />
+        <AnalyticsList icon={<Link2 size={18} />} title="Top campaigns" items={analytics?.top_campaigns} empty={analytics ? 'No campaigns recorded yet.' : 'Analytics not loaded yet.'} label={(item) => item.campaign} value={(item) => item.referrals} />
       </div>
+    </section>
+
+    <section className="adminCard campaignBuilder" style={{ margin: '16px auto 0', maxWidth: 1180 }} dir="rtl">
+      <div className="adminCardTitle"><Link2 size={22} /><h2>Campaign Link Builder</h2></div>
+      <p>لینکێکی تایبەت بۆ WhatsApp، Telegram، Facebook، TikTok یان هەر campaign ـێک دروست بکە و دواتر ئەنجامەکانی لە سەرەوە ببینە.</p>
+      <div className="campaignBuilderGrid">
+        <label>Traffic source
+          <select value={campaignSource} onChange={(event) => setCampaignSource(event.target.value)}>
+            <option value="whatsapp">WhatsApp</option>
+            <option value="telegram">Telegram</option>
+            <option value="facebook">Facebook</option>
+            <option value="instagram">Instagram</option>
+            <option value="tiktok">TikTok</option>
+            <option value="x">X / Twitter</option>
+            <option value="copy">Copied link</option>
+            <option value="custom">Custom</option>
+          </select>
+        </label>
+        <label>Campaign name
+          <input value={campaignName} onChange={(event) => setCampaignName(event.target.value)} placeholder="summer-prompts" />
+        </label>
+        <label className="wide">Prompt slug (optional)
+          <input value={campaignSlug} onChange={(event) => setCampaignSlug(event.target.value)} placeholder="prompt-1 or starter-solo-cinematic-portrait" />
+        </label>
+      </div>
+      <div className="campaignLinkOutput"><code>{campaignLink}</code><button type="button" onClick={copyCampaignLink}><Copy size={17} /> Copy campaign link</button></div>
     </section>
 
     <AdminPanelV4 />
   </>;
+}
+
+function AnalyticsList({ icon, title, items, empty, label, value }) {
+  const rows = Array.isArray(items) ? items : [];
+  return <div>
+    <h3>{icon} {title}</h3>
+    <ol>{rows.length ? rows.map((item, index) => <li key={`${label(item)}-${index}`}><span>{label(item)}</span><strong>{value(item)}</strong></li>) : <li><span>{empty}</span></li>}</ol>
+  </div>;
+}
+
+function cleanToken(value) {
+  return String(value || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 120);
+}
+
+function socialSource(source) {
+  return ['whatsapp', 'telegram', 'facebook', 'instagram', 'tiktok', 'x'].includes(source);
 }
