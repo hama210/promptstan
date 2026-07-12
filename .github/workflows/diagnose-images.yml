@@ -1,4 +1,4 @@
-name: Verify PromptStan Images
+name: Verify PromptStan Prompt Pages
 
 on:
   pull_request:
@@ -10,47 +10,86 @@ permissions:
   contents: read
 
 jobs:
-  verify-images:
+  verify-prompts:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
 
     steps:
-      - name: Verify prompt API and public image files
+      - name: Verify shareable prompt metadata and image files
         env:
-          LIVE_BASE: https://promptstan-api.hhhh46529.workers.dev
+          PRODUCTION_BASE: https://promptstan-api.hhhh46529.workers.dev
+          HEAD_BRANCH: ${{ github.head_ref }}
         run: |
           set -euo pipefail
-          curl -fsSL "$LIVE_BASE/api/prompts" -o /tmp/prompts.json
+
+          branch_slug="$(printf '%s' "$HEAD_BRANCH" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9-]+/-/g; s/^-+|-+$//g')"
+          if [ -n "$branch_slug" ]; then
+            APP_BASE="https://${branch_slug}-promptstan-api.hhhh46529.workers.dev"
+          else
+            APP_BASE="$PRODUCTION_BASE"
+          fi
+
+          for attempt in $(seq 1 30); do
+            if curl -fsSL "$APP_BASE/api/health" >/tmp/health.json 2>/dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              echo "PromptStan preview was not available at $APP_BASE" >&2
+              exit 1
+            fi
+            sleep 5
+          done
+
+          curl -fsSL "$APP_BASE/api/prompts" -o /tmp/prompts.json
 
           node <<'NODE'
           const fs = require('fs');
           const prompts = JSON.parse(fs.readFileSync('/tmp/prompts.json', 'utf8'));
           if (!Array.isArray(prompts)) throw new Error('Prompt API did not return an array');
 
-          const prompt = prompts.find((item) => item.before_image_url && item.after_image_url);
-          if (!prompt) throw new Error('No prompt has both Before and After images');
+          const prompt = prompts.find((item) => item.slug && item.before_image_url && item.after_image_url);
+          if (!prompt) throw new Error('No prompt has a slug plus Before and After images');
 
-          const base = process.env.LIVE_BASE.replace(/\/$/, '');
+          const base = process.env.APP_BASE.replace(/\/$/, '');
           const absolute = (value) => /^https?:\/\//i.test(value)
             ? value
             : `${base}${value.startsWith('/') ? '' : '/'}${value}`;
 
+          fs.writeFileSync('/tmp/prompt-slug.txt', prompt.slug);
           fs.writeFileSync('/tmp/before-url.txt', absolute(prompt.before_image_url));
           fs.writeFileSync('/tmp/after-url.txt', absolute(prompt.after_image_url));
-          console.log(JSON.stringify({
-            id: prompt.id,
-            image_status: prompt.image_status,
-            before_image_url: prompt.before_image_url,
-            after_image_url: prompt.after_image_url
-          }));
+          console.log(JSON.stringify({ id: prompt.id, slug: prompt.slug, image_status: prompt.image_status }));
           NODE
+        env:
+          APP_BASE: ${{ env.APP_BASE }}
 
+      - name: Validate the prompt page and assets
+        env:
+          PRODUCTION_BASE: https://promptstan-api.hhhh46529.workers.dev
+          HEAD_BRANCH: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+
+          branch_slug="$(printf '%s' "$HEAD_BRANCH" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9-]+/-/g; s/^-+|-+$//g')"
+          if [ -n "$branch_slug" ]; then
+            APP_BASE="https://${branch_slug}-promptstan-api.hhhh46529.workers.dev"
+          else
+            APP_BASE="$PRODUCTION_BASE"
+          fi
+
+          slug="$(cat /tmp/prompt-slug.txt)"
           before_url="$(cat /tmp/before-url.txt)"
           after_url="$(cat /tmp/after-url.txt)"
 
+          curl -fsSL "$APP_BASE/prompt/$slug" -o /tmp/prompt-page.html
+          grep -F '<meta property="og:type" content="article"' /tmp/prompt-page.html
+          grep -F '<meta property="og:image"' /tmp/prompt-page.html
+          grep -F '<meta name="twitter:image"' /tmp/prompt-page.html
+          grep -F '"@type":"CreativeWork"' /tmp/prompt-page.html
+          grep -F "/prompt/$slug" /tmp/prompt-page.html
+
           curl -fsSL -D /tmp/before-headers.txt "$before_url" -o /tmp/before-image
           curl -fsSL -D /tmp/after-headers.txt "$after_url" -o /tmp/after-image
-
           grep -iE '^content-type: image/' /tmp/before-headers.txt
           grep -iE '^content-type: image/' /tmp/after-headers.txt
           test -s /tmp/before-image
