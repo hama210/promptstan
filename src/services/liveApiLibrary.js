@@ -31,6 +31,19 @@ export async function loadLibraryData() {
   }
 }
 
+export async function getPromptBySlug(slug) {
+  const safeSlug = String(slug || '').trim();
+  if (!safeSlug) return null;
+
+  try {
+    const response = await fetch(`${API_BASE}/api/prompts/${encodeURIComponent(safeSlug)}`);
+    if (!response.ok) return null;
+    return normalizePrompt(await response.json());
+  } catch {
+    return null;
+  }
+}
+
 export async function searchLibrary(query) {
   const term = query.trim();
   if (!term) return null;
@@ -59,7 +72,7 @@ function normalizeCategory(category) {
   };
 }
 
-function normalizePrompt(prompt, index = 0) {
+export function normalizePrompt(prompt, index = 0) {
   const title = prompt.title_ku || prompt.title_en || prompt.title_ar || prompt.title || 'Untitled Prompt';
   const slug = prompt.slug || `prompt-${prompt.id || index}`;
   const englishTitle = prompt.title_en || prompt.imageTitle || title;
@@ -77,6 +90,7 @@ function normalizePrompt(prompt, index = 0) {
     copies: formatNumber(prompt.copies || 0),
     rating: String(prompt.rating || '4.8'),
     imageTitle: englishTitle || 'Person Edit',
+    description: prompt.description_ku || prompt.description_en || prompt.description_ar || '',
     text: prompt.prompt_text || prompt.text || '',
     beforeImage,
     afterImage,
