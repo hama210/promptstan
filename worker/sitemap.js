@@ -1,3 +1,5 @@
+import { listFallbackPrompts } from './fallback-prompts.js';
+
 export async function serveSitemap(request, env) {
   const result = await env.DB.prepare(`
     SELECT slug, COALESCE(updated_at, published_at, created_at) AS last_modified
@@ -7,9 +9,14 @@ export async function serveSitemap(request, env) {
     LIMIT 5000
   `).all();
 
+  const databasePrompts = result.results || [];
+  const prompts = databasePrompts.length
+    ? databasePrompts
+    : listFallbackPrompts().map((prompt) => ({ slug: prompt.slug, last_modified: null }));
+
   const requestUrl = new URL(request.url);
   const baseUrl = String(env.PUBLIC_BASE_URL || requestUrl.origin).replace(/\/$/, '');
-  const promptUrls = (result.results || []).map((prompt) => {
+  const promptUrls = prompts.map((prompt) => {
     const location = `${baseUrl}/prompt/${encodeURIComponent(prompt.slug)}`;
     const lastModified = prompt.last_modified ? `<lastmod>${escapeXml(toIsoDate(prompt.last_modified))}</lastmod>` : '';
     return `<url><loc>${escapeXml(location)}</loc>${lastModified}<changefreq>weekly</changefreq><priority>0.8</priority></url>`;
