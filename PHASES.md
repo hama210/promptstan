@@ -16,7 +16,8 @@
    - ✅ Empty-library fallback pages and safe D1 self-healing
    - ✅ Live D1 + built-in prompt library merging
    - ✅ Functional collections, card sharing, and related prompts
-   - ⏳ Share analytics and growth loops
+   - ✅ Privacy-friendly share/search analytics and admin dashboard
+   - ⏳ Referral links and campaign attribution
 
 ## Next
 

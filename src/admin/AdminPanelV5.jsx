@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { RefreshCw, ShieldCheck, Wand2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { BarChart3, RefreshCw, Search, Share2, ShieldCheck, Wand2 } from 'lucide-react';
 import AdminPanelV4 from './AdminPanelV4.jsx';
 
 const API_BASE = window.location.hostname.includes('workers.dev') ? window.location.origin : 'https://promptstan-api.hhhh46529.workers.dev';
@@ -7,6 +7,11 @@ const API_BASE = window.location.hostname.includes('workers.dev') ? window.locat
 export default function AdminPanelV5() {
   const [message, setMessage] = useState('');
   const [working, setWorking] = useState(false);
+  const [analytics, setAnalytics] = useState(null);
+
+  useEffect(() => {
+    if (getToken()) loadAnalytics();
+  }, []);
 
   function getToken() {
     return localStorage.getItem('promptstan-admin-token') || '';
@@ -15,6 +20,33 @@ export default function AdminPanelV5() {
   function getAuthHeaders() {
     const token = getToken();
     return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
+  async function loadAnalytics(showStatus = false) {
+    if (!getToken()) {
+      if (showStatus) setMessage('Save ADMIN_TOKEN in the panel first.');
+      return;
+    }
+
+    if (showStatus) {
+      setWorking(true);
+      setMessage('Loading growth analytics...');
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/api/admin/analytics`, {
+        headers: getAuthHeaders(),
+        cache: 'no-store'
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Analytics failed');
+      setAnalytics(data);
+      if (showStatus) setMessage('Growth analytics updated.');
+    } catch (error) {
+      if (showStatus) setMessage(error.message);
+    } finally {
+      if (showStatus) setWorking(false);
+    }
   }
 
   async function checkSystem() {
@@ -31,7 +63,8 @@ export default function AdminPanelV5() {
       if (!response.ok) throw new Error(data.error || 'System check failed');
       const status = data.status || {};
       const provider = status.image_provider === 'openai' ? 'OpenAI' : status.image_provider === 'workers-ai' ? 'Workers AI' : 'Missing';
-      setMessage(`D1 ${status.database ? '✅' : '❌'} · R2 ${status.r2 ? '✅' : '❌'} · Images: ${provider} ${status.image_provider ? '✅' : '❌'} · Admin token ${status.admin_token ? '✅' : '❌'}`);
+      setMessage(`D1 ${status.database ? '✅' : '❌'} · R2 ${status.r2 ? '✅' : '❌'} · Images: ${provider} ${status.image_provider ? '✅' : '❌'} · Analytics ${status.growth_phase ? '✅' : '❌'} · Admin token ${status.admin_token ? '✅' : '❌'}`);
+      await loadAnalytics();
     } catch (error) {
       setMessage(error.message);
     } finally {
@@ -77,6 +110,8 @@ export default function AdminPanelV5() {
     }
   }
 
+  const totals = analytics?.totals || {};
+
   return <>
     <section className="adminCard" style={{ margin: '20px auto 0', maxWidth: 1180 }} dir="rtl">
       <div className="adminCardTitle"><ShieldCheck size={22} /><h2>Cloudflare &amp; Image Repair</h2></div>
@@ -84,10 +119,33 @@ export default function AdminPanelV5() {
       <div className="adminTokenRow">
         <button type="button" onClick={checkSystem} disabled={working}><ShieldCheck size={17} /> Check system</button>
         <button type="button" onClick={retryMissingImages} disabled={working}><Wand2 size={17} /> Retry missing images</button>
+        <button type="button" onClick={() => loadAnalytics(true)} disabled={working}><BarChart3 size={17} /> Refresh analytics</button>
         {working && <span><RefreshCw size={16} /> Working...</span>}
       </div>
       {message && <div className="adminMessage" style={{ marginTop: 12 }}>{message}</div>}
     </section>
+
+    <section className="adminCard growthAnalytics" style={{ margin: '16px auto 0', maxWidth: 1180 }} dir="rtl">
+      <div className="adminCardTitle"><BarChart3 size={22} /><h2>Growth Analytics</h2></div>
+      <p>ئەم ئامارانە تەنها Share، گەڕان، ناوی پرۆمپت و کاتی ڕووداوەکە تۆمار دەکەن؛ IP یان زانیاری کەسی تۆمار ناکرێت.</p>
+
+      <div className="adminGrid analyticsStats">
+        <div className="adminCard statCard"><Share2 size={26} /><span>Total shares</span><strong>{totals.shares ?? 0}</strong><small>{totals.shares_7d ?? 0} last 7 days</small></div>
+        <div className="adminCard statCard"><Search size={26} /><span>Total searches</span><strong>{totals.searches ?? 0}</strong><small>{totals.searches_7d ?? 0} last 7 days</small></div>
+      </div>
+
+      <div className="analyticsLists">
+        <div>
+          <h3><Share2 size={18} /> Top shared prompts</h3>
+          <ol>{(analytics?.top_shares || []).length ? analytics.top_shares.map((item) => <li key={item.slug || item.title}><span>{item.title || item.slug || 'Unknown prompt'}</span><strong>{item.shares}</strong></li>) : <li><span>No shares recorded yet.</span></li>}</ol>
+        </div>
+        <div>
+          <h3><Search size={18} /> Top searches</h3>
+          <ol>{(analytics?.top_searches || []).length ? analytics.top_searches.map((item) => <li key={item.query}><span>{item.query}</span><strong>{item.searches}</strong></li>) : <li><span>No searches recorded yet.</span></li>}</ol>
+        </div>
+      </div>
+    </section>
+
     <AdminPanelV4 />
   </>;
 }

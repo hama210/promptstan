@@ -33,13 +33,14 @@ jobs:
           for attempt in $(seq 1 36); do
             health="$(curl -fsSL "$APP_BASE/api/health" 2>/dev/null || true)"
             printf '%s\n' "$health"
-            if printf '%s' "$health" | grep -F '"launch_phase":"shareable-prompts-v1"' >/dev/null; then
+            if printf '%s' "$health" | grep -F '"launch_phase":"shareable-prompts-v1"' >/dev/null \
+              && printf '%s' "$health" | grep -F '"growth_phase":"privacy-analytics-v1"' >/dev/null; then
               exit 0
             fi
             sleep 5
           done
 
-          echo "The Phase 5 preview revision was not available at $APP_BASE" >&2
+          echo "The Phase 5 analytics preview was not available at $APP_BASE" >&2
           exit 1
 
       - name: Bootstrap an empty prompt library safely
@@ -60,7 +61,31 @@ jobs:
           }
           const prompt = prompts.find((item) => item.slug);
           require('fs').writeFileSync('/tmp/prompt-slug.txt', prompt.slug);
+          require('fs').writeFileSync('/tmp/prompt-title.txt', prompt.title_ku || prompt.title_en || prompt.slug);
           NODE
+
+      - name: Verify growth event ingestion and protection
+        run: |
+          set -euo pipefail
+          APP_BASE="$(cat /tmp/app-base.txt)"
+          slug="$(cat /tmp/prompt-slug.txt)"
+          title="$(cat /tmp/prompt-title.txt)"
+
+          curl -fsSL -X POST "$APP_BASE/api/share" \
+            -H 'content-type: application/json' \
+            --data "{\"slug\":\"$slug\",\"title\":\"$title\"}" \
+            | tee /tmp/share-event.json
+          grep -F '"ok":true' /tmp/share-event.json
+
+          curl -fsSL -X POST "$APP_BASE/api/search-event" \
+            -H 'content-type: application/json' \
+            --data '{"query":"cinematic portrait","result_count":1}' \
+            | tee /tmp/search-event.json
+          grep -F '"ok":true' /tmp/search-event.json
+
+          status="$(curl -sS -o /tmp/analytics-unauthorized.json -w '%{http_code}' "$APP_BASE/api/admin/analytics")"
+          test "$status" = "401"
+          grep -F '"error":"Unauthorized"' /tmp/analytics-unauthorized.json
 
       - name: Validate the preview prompt page, sitemap, and social image
         run: |

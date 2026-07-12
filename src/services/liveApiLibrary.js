@@ -2,6 +2,7 @@ import { categories as fallbackCategories, promptItems as fallbackPrompts, tags 
 
 const API_BASE = 'https://promptstan-api.hhhh46529.workers.dev';
 const gradients = ['purple', 'green', 'gold', 'pink', 'blue', 'rose'];
+const SEARCH_SESSION_PREFIX = 'promptstan-search-event:';
 
 export async function loadLibraryData() {
   const staticPrompts = fallbackPrompts.map((prompt, index) => normalizePrompt(prompt, index, 'static'));
@@ -67,10 +68,13 @@ export async function searchLibrary(query) {
     const response = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(term)}`);
     if (!response.ok) throw new Error('Search API not ready');
     const prompts = await response.json();
-    return Array.isArray(prompts)
+    const normalized = Array.isArray(prompts)
       ? prompts.map((prompt, index) => normalizePrompt(prompt, index, 'api'))
       : [];
+    trackSearchEvent(term, normalized.length);
+    return normalized;
   } catch {
+    trackSearchEvent(term, 0);
     return null;
   }
 }
@@ -78,7 +82,43 @@ export async function searchLibrary(query) {
 export async function trackPromptAction(id, action) {
   if (!id) return;
   try {
-    await fetch(`${API_BASE}/api/${action}/${id}`, { method: 'POST' });
+    await fetch(`${API_BASE}/api/${action}/${id}`, { method: 'POST', keepalive: true });
+  } catch {}
+}
+
+export async function trackPromptShare(prompt) {
+  if (!prompt?.slug) return;
+  try {
+    await fetch(`${API_BASE}/api/share`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        prompt_id: prompt.trackId || null,
+        slug: prompt.slug,
+        title: prompt.title
+      }),
+      keepalive: true
+    });
+  } catch {}
+}
+
+export async function trackSearchEvent(query, resultCount = 0) {
+  const term = String(query || '').trim().replace(/^#+/, '');
+  if (term.length < 2) return;
+
+  const key = `${SEARCH_SESSION_PREFIX}${term.toLowerCase()}`;
+  try {
+    if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(key)) return;
+    if (typeof sessionStorage !== 'undefined') sessionStorage.setItem(key, '1');
+  } catch {}
+
+  try {
+    await fetch(`${API_BASE}/api/search-event`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ query: term, result_count: resultCount }),
+      keepalive: true
+    });
   } catch {}
 }
 

@@ -23,6 +23,7 @@
 .statCard svg { color: #00f5a0; }
 .statCard span { color: #a1a1aa; }
 .statCard strong { font-size: 36px; }
+.statCard small { color: #7f7f8d; }
 .dailyCard { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
 .promptForm { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-top: 18px; }
 .promptForm label { color: #d4d4dd; display: grid; gap: 8px; }
@@ -47,7 +48,21 @@
 .adminPromptActions .dangerButton { background: rgba(239,68,68,.18); color: #fecaca; border: 1px solid rgba(239,68,68,.32); }
 .pagination { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 18px; }
 .pagination button:disabled { opacity: .35; }
+
+.growthAnalytics { overflow: hidden; }
+.growthAnalytics > p { max-width: 820px; }
+.analyticsStats { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 18px; }
+.analyticsLists { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.analyticsLists > div { min-width: 0; border: 1px solid rgba(255,255,255,.09); background: rgba(255,255,255,.035); border-radius: 20px; padding: 16px; }
+.analyticsLists h3 { margin: 0 0 12px; display: flex; align-items: center; gap: 8px; color: #f4f4f8; }
+.analyticsLists h3 svg { color: #00f5a0; }
+.analyticsLists ol { list-style: none; display: grid; gap: 8px; margin: 0; padding: 0; }
+.analyticsLists li { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-radius: 12px; padding: 10px 12px; background: rgba(255,255,255,.04); }
+.analyticsLists li span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #d4d4dd; }
+.analyticsLists li strong { flex: 0 0 auto; color: #00f5a0; }
+
 button:disabled { opacity: .5; cursor: not-allowed; }
 @media (max-width: 900px) { .adminPromptItem { grid-template-columns: auto 1fr; align-items: flex-start; } .adminPromptActions { grid-column: 1 / -1; width: 100%; } .adminPromptActions button { flex: 1; justify-content: center; } }
-@media (max-width: 800px) { .adminHero, .dailyCard { flex-direction: column; align-items: stretch; } .adminGrid { grid-template-columns: repeat(2, 1fr); } .promptForm { grid-template-columns: 1fr; } }
+@media (max-width: 800px) { .adminHero, .dailyCard { flex-direction: column; align-items: stretch; } .adminGrid, .analyticsLists { grid-template-columns: repeat(2, 1fr); } .promptForm { grid-template-columns: 1fr; } }
+@media (max-width: 620px) { .analyticsLists { grid-template-columns: 1fr; } }
 @media (max-width: 520px) { .adminGrid { grid-template-columns: 1fr; } .adminTokenRow, .adminSearch { grid-template-columns: 1fr; } }

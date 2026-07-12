@@ -1,11 +1,13 @@
 import app from './index.js';
 import { adminUpdatePrompt, adminRetryPromptImages } from './admin-extra.js';
+import { adminAnalytics, recordPromptShare, recordSearch } from './analytics.js';
 import { ensurePromptImageColumns, getConfiguredImageProvider } from './auto-images.js';
 import { getFallbackPrompt } from './fallback-prompts.js';
 import { serveSitemap } from './sitemap.js';
 
 const IMAGE_PIPELINE_VERSION = 'flux2-klein-sync-v7';
 const LAUNCH_PHASE_VERSION = 'shareable-prompts-v1';
+const GROWTH_PHASE_VERSION = 'privacy-analytics-v1';
 const BOOTSTRAP_HEADER = 'empty-library-v1';
 const STARTER_SLUG = 'starter-solo-cinematic-portrait';
 const JSON_HEADERS = {
@@ -25,12 +27,25 @@ export default {
         service: 'promptstan-api',
         image_provider: getConfiguredImageProvider(env) || 'missing',
         image_pipeline: IMAGE_PIPELINE_VERSION,
-        launch_phase: LAUNCH_PHASE_VERSION
+        launch_phase: LAUNCH_PHASE_VERSION,
+        growth_phase: GROWTH_PHASE_VERSION
       });
     }
 
     if (url.pathname === '/api/bootstrap' && request.method === 'POST') {
       return bootstrapEmptyLibrary(request, env);
+    }
+
+    if (url.pathname === '/api/share' && request.method === 'POST') {
+      return recordPromptShare(request, env);
+    }
+
+    if (url.pathname === '/api/search-event' && request.method === 'POST') {
+      return recordSearch(request, env);
+    }
+
+    if (url.pathname === '/api/admin/analytics') {
+      return adminOnly(request, env, adminAnalytics);
     }
 
     if (url.pathname === '/api/admin/system') {
@@ -235,6 +250,7 @@ async function adminSystemStatus(request, env) {
     image_provider: imageProvider,
     image_pipeline: IMAGE_PIPELINE_VERSION,
     launch_phase: LAUNCH_PHASE_VERSION,
+    growth_phase: GROWTH_PHASE_VERSION,
     admin_token: Boolean(env.ADMIN_TOKEN),
     daily_post_enabled: env.DAILY_POST_ENABLED !== 'false'
   };
