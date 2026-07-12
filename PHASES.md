@@ -10,10 +10,12 @@
 ## Current
 
 5. **Launch and growth**
-   - Shareable `/prompt/:slug` pages
-   - WhatsApp/Telegram/social previews
-   - SEO and structured data
-   - Public navigation and conversion improvements
+   - ✅ Shareable `/prompt/:slug` pages
+   - ✅ WhatsApp, Telegram, and social preview metadata
+   - ✅ SEO, structured data, robots rules, and dynamic sitemap
+   - ✅ Empty-library fallback pages and D1 starter seed
+   - ⏳ Public navigation and conversion improvements
+   - ⏳ Share analytics and growth loops
 
 ## Next
 
