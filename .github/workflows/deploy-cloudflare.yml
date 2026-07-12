@@ -47,6 +47,13 @@ jobs:
           wranglerVersion: "4"
           command: whoami
 
+      - name: Seed an empty production D1 library
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          wranglerVersion: "4"
+          command: d1 execute promptstan-db --remote --file=database/migrations/0003_seed_starter_prompt.sql
+
       - name: Check ADMIN_TOKEN Worker secret
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
