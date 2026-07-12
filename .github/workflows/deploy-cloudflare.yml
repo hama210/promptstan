@@ -41,7 +41,8 @@ jobs:
         run: node scripts/test-automation.mjs
 
       - name: Verify hourly automation trigger
-        run: grep -F '"crons": ["0 * * * *"]' wrangler.jsonc
+        run: |
+          grep -F '"crons": ["0 * * * *"]' wrangler.jsonc
 
       - name: Build frontend
         run: npm run build
@@ -117,7 +118,8 @@ jobs:
         run: node scripts/test-automation.mjs
 
       - name: Verify hourly automation trigger
-        run: grep -F '"crons": ["0 * * * *"]' wrangler.jsonc
+        run: |
+          grep -F '"crons": ["0 * * * *"]' wrangler.jsonc
 
       - name: Build frontend
         run: npm run build
