@@ -1,6 +1,7 @@
 import app from './index.js';
 import { adminUpdatePrompt, adminRetryPromptImages } from './admin-extra.js';
 import { ensurePromptImageColumns, getConfiguredImageProvider } from './auto-images.js';
+import { serveSitemap } from './sitemap.js';
 
 const IMAGE_PIPELINE_VERSION = 'flux2-klein-sync-v7';
 const JSON_HEADERS = {
@@ -25,6 +26,10 @@ export default {
 
     if (url.pathname === '/api/admin/system') {
       return adminOnly(request, env, adminSystemStatus);
+    }
+
+    if (url.pathname === '/sitemap.xml' && ['GET', 'HEAD'].includes(request.method)) {
+      return serveSitemap(request, env);
     }
 
     const promptPageMatch = url.pathname.match(/^\/prompt\/([^/]+)\/?$/);
