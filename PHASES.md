@@ -16,18 +16,22 @@
    - Privacy-friendly share/search analytics
    - Referral source and campaign attribution
    - Admin campaign link builder and traffic-source reporting
+6. **Content scale**
+   - 240-combination automatic prompt rotation
+   - Exact and near-duplicate prevention for Admin and bot posts
+   - Deterministic quality scoring before bot publishing
+   - Admin duplicate scanner and next-candidate preview
+   - Dynamic local-time posting schedule with selectable days
+   - Managed Before/After image batches capped at three prompts
+   - Automation history, queue status and safe manual controls
 
 ## Current
 
-6. **Content scale**
-   - ✅ 240-combination automatic prompt rotation
-   - ✅ Exact and near-duplicate prevention for Admin and bot posts
-   - ✅ Deterministic quality scoring before bot publishing
-   - ✅ Admin duplicate scanner and next-candidate preview
-   - ⏳ Scheduling controls
-   - ⏳ Managed Before/After image batches
+7. **Advanced growth loops**
+   - ⏳ Conversion reports
+   - ⏳ Campaign comparisons
+   - ⏳ Data-based content recommendations
 
 ## Next
 
-7. **Advanced growth loops** — conversion reports, campaign comparisons and content recommendations.
 8. **Accounts and monetization** — optional sign-in, synced favorites, premium collections and sponsored placements.
