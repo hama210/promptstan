@@ -3,28 +3,35 @@ const API_BASE = window.location.hostname.includes('workers.dev')
   : 'https://promptstan-api.hhhh46529.workers.dev';
 
 const SHARE_SELECTOR = '.cardShareButton, .shareWide, .campaignShareButton';
+const COPY_SELECTOR = '.copyButton, .promptBoxHeader button, .featureActions .primary';
+const FAVORITE_SELECTOR = '.heartButton, .favoriteWide';
 const CAMPAIGN_NAME = 'prompt-share';
 const TRACKING_KEYS = ['ref', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_content'];
+const ATTRIBUTION_KEY = 'promptstan-growth-attribution';
+const ATTRIBUTION_TTL = 7 * 24 * 60 * 60 * 1000;
 
 if (!window.location.pathname.startsWith('/admin')) {
   captureReferralArrival();
   patchNativeShare();
   patchClipboardLinks();
   installCampaignSharePanel();
+  installConversionTracking();
 }
 
 document.addEventListener('click', (event) => {
   const button = event.target.closest?.(SHARE_SELECTOR);
   if (!button) return;
 
-  const container = button.closest('.promptModal, .promptCard, .feature');
-  const title = container?.querySelector('h2, h3')?.textContent?.trim() || '';
-  const routeMatch = window.location.pathname.match(/^\/prompt\/([^/]+)\/?$/);
-  const slug = button.dataset.promptSlug || (routeMatch ? decodeURIComponent(routeMatch[1]) : '');
+  const prompt = readPromptContext(button);
   const source = button.dataset.shareSource || 'native';
   const campaign = button.dataset.campaign || CAMPAIGN_NAME;
 
-  sendEvent('/api/share', { slug, title, source, campaign });
+  sendEvent('/api/share', {
+    slug: prompt.slug,
+    title: prompt.title,
+    source,
+    campaign
+  });
 }, true);
 
 function captureReferralArrival() {
@@ -39,25 +46,154 @@ function captureReferralArrival() {
 
   if (!hasExplicitTracking && !hasExternalReferrer) return;
 
-  const key = `promptstan-referral:${source || 'other'}:${campaign || 'uncategorized'}:${slug || 'site'}`;
-  try {
-    if (sessionStorage.getItem(key)) return;
-    sessionStorage.setItem(key, '1');
-  } catch {}
-
-  sendEvent('/api/referral-event', {
+  const attribution = {
     source: source || 'other-referral',
     medium: medium || 'referral',
     campaign: campaign || 'uncategorized',
     slug,
-    referrer: document.referrer || ''
-  });
+    created_at: Date.now(),
+    expires_at: Date.now() + ATTRIBUTION_TTL
+  };
+  saveAttribution(attribution);
+
+  const key = `promptstan-referral:${attribution.source}:${attribution.campaign}:${slug || 'site'}`;
+  let duplicate = false;
+  try {
+    duplicate = Boolean(sessionStorage.getItem(key));
+    sessionStorage.setItem(key, '1');
+  } catch {}
+
+  if (!duplicate) {
+    sendEvent('/api/referral-event', {
+      source: attribution.source,
+      medium: attribution.medium,
+      campaign: attribution.campaign,
+      slug,
+      referrer: document.referrer || ''
+    });
+  }
 
   if (hasExplicitTracking) {
     for (const keyName of TRACKING_KEYS) url.searchParams.delete(keyName);
     window.setTimeout(() => {
       window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
     }, 250);
+  }
+}
+
+function installConversionTracking() {
+  patchHistoryNavigation();
+
+  const trackCurrentPromptView = () => {
+    const prompt = readPromptContext(document.body);
+    if (!prompt.slug) return;
+
+    const key = `promptstan-view:${prompt.slug}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, '1');
+    } catch {}
+
+    sendConversion('view', prompt);
+  };
+
+  let timer = null;
+  const scheduleViewTracking = () => {
+    window.clearTimeout(timer);
+    timer = window.setTimeout(trackCurrentPromptView, 80);
+  };
+
+  window.addEventListener('popstate', scheduleViewTracking);
+  window.addEventListener('promptstan:navigation', scheduleViewTracking);
+  new MutationObserver(scheduleViewTracking).observe(document.body, { childList: true, subtree: true });
+  scheduleViewTracking();
+
+  document.addEventListener('click', (event) => {
+    const copyButton = event.target.closest?.(COPY_SELECTOR);
+    if (copyButton) {
+      sendConversion('copy', readPromptContext(copyButton));
+      return;
+    }
+
+    const favoriteButton = event.target.closest?.(FAVORITE_SELECTOR);
+    if (favoriteButton && !favoriteButton.classList.contains('active')) {
+      sendConversion('favorite', readPromptContext(favoriteButton));
+    }
+  }, true);
+}
+
+function sendConversion(eventType, prompt) {
+  const attribution = getAttribution();
+  sendEvent('/api/conversion-event', {
+    event_type: eventType,
+    slug: prompt.slug,
+    title: prompt.title,
+    source: attribution.source,
+    medium: attribution.medium,
+    campaign: attribution.campaign
+  });
+}
+
+function readPromptContext(element) {
+  const container = element?.closest?.('.promptModal, .promptCard, .feature') || document.querySelector('.promptModal') || element;
+  const routeMatch = window.location.pathname.match(/^\/prompt\/([^/]+)\/?$/);
+  const slug = cleanToken(
+    element?.dataset?.promptSlug
+      || container?.dataset?.promptSlug
+      || (routeMatch ? decodeURIComponent(routeMatch[1]) : '')
+  );
+  const title = container?.querySelector?.('h2, h3')?.textContent?.trim()
+    || document.querySelector('.promptModal h2')?.textContent?.trim()
+    || document.title.replace(/\s*\|\s*Promptstan.*$/i, '').trim()
+    || '';
+  return { slug, title };
+}
+
+function saveAttribution(value) {
+  try {
+    localStorage.setItem(ATTRIBUTION_KEY, JSON.stringify(value));
+    sessionStorage.setItem(ATTRIBUTION_KEY, JSON.stringify(value));
+  } catch {}
+}
+
+function getAttribution() {
+  const fallback = { source: 'direct', medium: 'organic', campaign: 'uncategorized' };
+  let raw = '';
+  try {
+    raw = sessionStorage.getItem(ATTRIBUTION_KEY) || localStorage.getItem(ATTRIBUTION_KEY) || '';
+  } catch {}
+  if (!raw) return fallback;
+
+  try {
+    const value = JSON.parse(raw);
+    if (Number(value.expires_at || 0) < Date.now()) {
+      try {
+        localStorage.removeItem(ATTRIBUTION_KEY);
+        sessionStorage.removeItem(ATTRIBUTION_KEY);
+      } catch {}
+      return fallback;
+    }
+    return {
+      source: cleanToken(value.source) || fallback.source,
+      medium: cleanToken(value.medium) || fallback.medium,
+      campaign: cleanToken(value.campaign) || fallback.campaign
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function patchHistoryNavigation() {
+  for (const method of ['pushState', 'replaceState']) {
+    const original = window.history[method];
+    if (typeof original !== 'function' || original.__promptstanTracked) continue;
+    const wrapped = function (...args) {
+      const result = original.apply(this, args);
+      window.dispatchEvent(new Event('promptstan:navigation'));
+      return result;
+    };
+    wrapped.__promptstanTracked = true;
+    try { window.history[method] = wrapped; } catch {}
   }
 }
 
@@ -138,6 +274,7 @@ function installCampaignSharePanel() {
   render();
   new MutationObserver(render).observe(document.body, { childList: true, subtree: true });
   window.addEventListener('popstate', render);
+  window.addEventListener('promptstan:navigation', render);
 }
 
 function shareToChannel(source, slug, title) {
