@@ -10,55 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  seed-d1:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Apply the idempotent starter seed
-        id: seed
-        continue-on-error: true
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          wranglerVersion: "4"
-          command: d1 execute promptstan-db --remote --file=database/migrations/0003_seed_starter_prompt.sql
-
-      - name: Save authenticated Wrangler output
-        if: always()
-        env:
-          SEED_OUTCOME: ${{ steps.seed.outcome }}
-          SEED_OUTPUT: ${{ steps.seed.outputs.command-output }}
-          SEED_ERROR: ${{ steps.seed.outputs.command-stderr }}
-        run: |
-          printf 'outcome=%s\n\nstdout:\n%s\n\nstderr:\n%s\n' "$SEED_OUTCOME" "$SEED_OUTPUT" "$SEED_ERROR" | tee seed-output.txt
-
-      - name: Upload authenticated Wrangler output
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: promptstan-authenticated-d1-seed
-          path: seed-output.txt
-          if-no-files-found: error
-          retention-days: 1
-
-      - name: Require a successful D1 seed
-        env:
-          SEED_OUTCOME: ${{ steps.seed.outcome }}
-        run: test "$SEED_OUTCOME" = "success"
-
-      - name: Verify D1 through Wrangler
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          wranglerVersion: "4"
-          command: d1 execute promptstan-db --remote --command="SELECT id, slug, image_status FROM prompts ORDER BY id DESC LIMIT 5"
-
   verify-prompts:
-    needs: seed-d1
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -90,22 +42,24 @@ jobs:
           echo "The Phase 5 preview revision was not available at $APP_BASE" >&2
           exit 1
 
-      - name: Select a live or fallback prompt
-        env:
-          PRODUCTION_BASE: https://promptstan-api.hhhh46529.workers.dev
+      - name: Bootstrap an empty prompt library safely
         run: |
           set -euo pipefail
-          curl -fsSL "$PRODUCTION_BASE/api/prompts" -o /tmp/prompts.json
+          APP_BASE="$(cat /tmp/app-base.txt)"
 
-          node <<'NODE'
-          const fs = require('fs');
-          const prompts = JSON.parse(fs.readFileSync('/tmp/prompts.json', 'utf8'));
-          if (!Array.isArray(prompts)) throw new Error('Prompt API did not return an array');
+          curl -fsSL -X POST \
+            -H 'x-promptstan-bootstrap: empty-library-v1' \
+            "$APP_BASE/api/bootstrap" | tee /tmp/bootstrap.json
 
+          prompts="$(curl -fsSL "$APP_BASE/api/prompts")"
+          printf '%s\n' "$prompts" | tee /tmp/preview-prompts.json
+          PROMPTS="$prompts" node <<'NODE'
+          const prompts = JSON.parse(process.env.PROMPTS || '[]');
+          if (!Array.isArray(prompts) || !prompts.some((prompt) => prompt.slug)) {
+            throw new Error('The preview prompt library is still empty after bootstrap');
+          }
           const prompt = prompts.find((item) => item.slug);
-          const slug = prompt?.slug || 'prompt-1';
-          fs.writeFileSync('/tmp/prompt-slug.txt', slug);
-          console.log(JSON.stringify({ source: prompt ? 'd1' : 'fallback', slug }));
+          require('fs').writeFileSync('/tmp/prompt-slug.txt', prompt.slug);
           NODE
 
       - name: Validate the preview prompt page, sitemap, and social image
@@ -131,33 +85,24 @@ jobs:
           grep -F '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' /tmp/sitemap.xml
           grep -F "/prompt/$slug" /tmp/sitemap.xml
 
-      - name: Verify the production deployment and D1 seed
+      - name: Verify production sees the seeded prompt
         env:
           PRODUCTION_BASE: https://promptstan-api.hhhh46529.workers.dev
         run: |
           set -euo pipefail
+          slug="$(cat /tmp/prompt-slug.txt)"
 
-          health="$(curl -fsSL "$PRODUCTION_BASE/api/health")"
           prompts="$(curl -fsSL "$PRODUCTION_BASE/api/prompts")"
-          printf '%s\n' "$health"
           printf '%s\n' "$prompts"
-
-          HEALTH="$health" PROMPTS="$prompts" node <<'NODE'
-          const health = JSON.parse(process.env.HEALTH || '{}');
+          PROMPTS="$prompts" SLUG="$slug" node <<'NODE'
           const prompts = JSON.parse(process.env.PROMPTS || '[]');
-          if (health.launch_phase !== 'shareable-prompts-v1') {
-            throw new Error('Production is not running the Phase 5 Worker');
+          if (!Array.isArray(prompts) || !prompts.some((prompt) => prompt.slug === process.env.SLUG)) {
+            throw new Error('Production D1 does not expose the bootstrapped prompt');
           }
-          if (!Array.isArray(prompts) || !prompts.some((prompt) => prompt.slug)) {
-            throw new Error('Production D1 still has no prompt slug');
-          }
-          const prompt = prompts.find((item) => item.slug);
-          require('fs').writeFileSync('/tmp/production-slug.txt', prompt.slug);
           NODE
 
-          production_slug="$(cat /tmp/production-slug.txt)"
-          curl -fsSL "$PRODUCTION_BASE/prompt/$production_slug" -o /tmp/production-prompt-page.html
+          curl -fsSL "$PRODUCTION_BASE/prompt/$slug" -o /tmp/production-prompt-page.html
           grep -F '<meta property="og:type" content="article"' /tmp/production-prompt-page.html
           grep -F '<meta property="og:image"' /tmp/production-prompt-page.html
-          grep -F "/prompt/$production_slug" /tmp/production-prompt-page.html
-          curl -fsSL "$PRODUCTION_BASE/sitemap.xml" | grep -F "/prompt/$production_slug"
+          grep -F "/prompt/$slug" /tmp/production-prompt-page.html
+          curl -fsSL "$PRODUCTION_BASE/sitemap.xml" | grep -F "/prompt/$slug"
