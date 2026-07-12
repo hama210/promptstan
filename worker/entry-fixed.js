@@ -1,6 +1,11 @@
 import app from './entry-v6.js';
 import { recordReferral } from './analytics.js';
 import { ensurePromptImageColumns } from './auto-images.js';
+import {
+  GROWTH_INTELLIGENCE_VERSION,
+  getGrowthIntelligence,
+  recordConversionEvent
+} from './growth-intelligence.js';
 import { restoreKnownLibrary } from './library-restore.js';
 
 const BOOTSTRAP_HEADER = 'empty-library-v1';
@@ -20,8 +25,31 @@ export default {
       return new Response(null, { status: 204, headers: JSON_HEADERS });
     }
 
+    if (url.pathname === '/api/health' && request.method === 'GET') {
+      const response = await app.fetch(request, env, ctx);
+      let data = {};
+      try { data = await response.json(); } catch {}
+      return json({ ...data, growth_intelligence: GROWTH_INTELLIGENCE_VERSION });
+    }
+
     if (url.pathname === '/api/referral-event' && request.method === 'POST') {
       return recordReferral(request, env);
+    }
+
+    if (url.pathname === '/api/conversion-event' && request.method === 'POST') {
+      return recordConversionEvent(request, env);
+    }
+
+    if (url.pathname === '/api/admin/growth-intelligence' && request.method === 'GET') {
+      if (!requireAdmin(request, env)) return json({ error: 'Unauthorized' }, 401);
+      try {
+        const days = Number(url.searchParams.get('days') || 30);
+        return json(await getGrowthIntelligence(env, days));
+      } catch (error) {
+        return json({
+          error: String(error?.message || error || 'Growth intelligence failed').slice(0, 500)
+        }, 500);
+      }
     }
 
     if (url.pathname === '/api/bootstrap' && request.method === 'POST') {

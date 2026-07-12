@@ -34,6 +34,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Test Phase 7 growth intelligence
+        run: node scripts/test-growth-intelligence.mjs
+
       - name: Test Phase 6 content safety
         run: node scripts/test-phase6.mjs
 
@@ -111,6 +114,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Test Phase 7 growth intelligence
+        run: node scripts/test-growth-intelligence.mjs
+
       - name: Test Phase 6 content safety
         run: node scripts/test-phase6.mjs
 
@@ -142,11 +148,12 @@ jobs:
             health="$(curl -fsSL "$LIVE_BASE/api/health" 2>/dev/null || true)"
             if printf '%s' "$health" | grep -F '"launch_phase":"shareable-prompts-v1"' >/dev/null \
               && printf '%s' "$health" | grep -F '"content_scale":"content-safety-v1"' >/dev/null \
-              && printf '%s' "$health" | grep -F '"automation":"dynamic-schedule-v1"' >/dev/null; then
+              && printf '%s' "$health" | grep -F '"automation":"dynamic-schedule-v1"' >/dev/null \
+              && printf '%s' "$health" | grep -F '"growth_intelligence":"conversion-intelligence-v1"' >/dev/null; then
               break
             fi
             if [ "$attempt" -eq 24 ]; then
-              echo 'The Phase 6 Worker was not observed in production.' >&2
+              echo 'The Phase 7 Worker was not observed in production.' >&2
               exit 1
             fi
             sleep 5

@@ -24,14 +24,23 @@
    - Dynamic local-time posting schedule with selectable days
    - Managed Before/After image batches capped at three prompts
    - Automation history, queue status and safe manual controls
+7. **Advanced growth loops**
+   - Full referral → view → copy/favorite conversion funnel
+   - Campaign and traffic-source conversion comparisons
+   - Best-performing prompt and category rankings
+   - Search-demand gap detection
+   - Local-time conversion-hour analysis
+   - Data-based content and campaign recommendations
+   - Bot preference signals derived from real searches and conversions
 
 ## Current
 
-7. **Advanced growth loops**
-   - ⏳ Conversion reports
-   - ⏳ Campaign comparisons
-   - ⏳ Data-based content recommendations
+8. **Accounts and monetization**
+   - ⏳ Optional sign-in
+   - ⏳ Synced favorites
+   - ⏳ Premium collections
+   - ⏳ Sponsored placements
 
 ## Next
 
-8. **Accounts and monetization** — optional sign-in, synced favorites, premium collections and sponsored placements.
+9. **Product operations** — moderation tools, backups, exports, retention controls and advanced reliability reporting.
