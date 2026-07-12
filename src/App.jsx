@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Copy, Eye, Flame, Globe2, Heart, Home, Layers, Search, Sparkles, Star, Wand2, X, Zap } from 'lucide-react';
+import { Copy, Eye, Flame, Globe2, Heart, Home, Layers, Link2, Search, Share2, Sparkles, Star, Wand2, X, Zap } from 'lucide-react';
 import { categories as staticCategories, promptItems as staticPrompts, tags as staticTags } from './data/site.js';
-import { loadLibraryData, searchLibrary, trackPromptAction } from './services/liveApiLibrary.js';
+import { getPromptBySlug, loadLibraryData, searchLibrary, trackPromptAction } from './services/liveApiLibrary.js';
 
 const languages = [
   { code: 'KU', label: 'کوردی', flag: '☀️' },
@@ -21,6 +21,8 @@ const ui = {
     copy: 'کۆپی',
     copyPrompt: 'کۆپی پرۆمپت',
     preview: 'پێشبینین',
+    share: 'هاوبەشکردن',
+    linkCopied: 'لینکی پرۆمپتەکە کۆپی کرا',
     categories: 'پۆلەکان',
     openCategories: 'کردنەوەی پۆلەکان',
     closeCategories: 'داخستنی پۆلەکان',
@@ -53,6 +55,8 @@ const ui = {
     copy: 'Copy',
     copyPrompt: 'Copy Prompt',
     preview: 'Preview',
+    share: 'Share',
+    linkCopied: 'Prompt link copied',
     categories: 'Categories',
     openCategories: 'Open categories',
     closeCategories: 'Close categories',
@@ -85,6 +89,8 @@ const ui = {
     copy: 'نسخ',
     copyPrompt: 'نسخ الموجه',
     preview: 'معاينة',
+    share: 'مشاركة',
+    linkCopied: 'تم نسخ رابط الموجه',
     categories: 'الأقسام',
     openCategories: 'فتح الأقسام',
     closeCategories: 'إغلاق الأقسام',
@@ -107,6 +113,9 @@ const ui = {
     after: 'بعد'
   }
 };
+
+const DEFAULT_TITLE = 'پڕۆمپتستان | Promptstan';
+const DEFAULT_DESCRIPTION = 'پڕۆمپتستان - کتێبخانەی فری پرۆمپتی AI بۆ دەستکاریکردنی وێنە.';
 
 function VisualPreview({ item, t, type = 'card' }) {
   const className = type === 'modal' ? 'modalVisual' : type === 'feature' ? 'featureImage premiumScene' : 'promptImage';
@@ -135,9 +144,28 @@ function VisualPreview({ item, t, type = 'card' }) {
   </div>;
 }
 
+function upsertMeta(selector, attributes) {
+  let element = document.head.querySelector(selector);
+  if (!element) {
+    element = document.createElement('meta');
+    document.head.appendChild(element);
+  }
+  Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, value));
+}
+
+function upsertCanonical(url) {
+  let element = document.head.querySelector('link[rel="canonical"]');
+  if (!element) {
+    element = document.createElement('link');
+    element.setAttribute('rel', 'canonical');
+    document.head.appendChild(element);
+  }
+  element.setAttribute('href', url);
+}
+
 export default function App() {
   const [query, setQuery] = useState('');
-  const [copied, setCopied] = useState('');
+  const [notice, setNotice] = useState('');
   const [activePrompt, setActivePrompt] = useState(null);
   const [language, setLanguage] = useState('KU');
   const [categoriesOpen, setCategoriesOpen] = useState(false);
@@ -174,6 +202,50 @@ export default function App() {
     return () => { active = false; window.clearTimeout(timer); };
   }, [query]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function syncPromptRoute() {
+      const match = window.location.pathname.match(/^\/prompt\/([^/]+)\/?$/);
+      if (!match) {
+        if (!cancelled) setActivePrompt(null);
+        return;
+      }
+
+      const slug = decodeURIComponent(match[1]);
+      const localPrompt = promptItems.find((item) => item.slug === slug);
+      const prompt = localPrompt || await getPromptBySlug(slug);
+      if (!cancelled && prompt) setActivePrompt(prompt);
+    }
+
+    syncPromptRoute();
+    window.addEventListener('popstate', syncPromptRoute);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('popstate', syncPromptRoute);
+    };
+  }, [promptItems]);
+
+  useEffect(() => {
+    const url = activePrompt ? `${window.location.origin}/prompt/${encodeURIComponent(activePrompt.slug)}` : window.location.origin;
+    const title = activePrompt ? `${activePrompt.title} | Promptstan` : DEFAULT_TITLE;
+    const description = activePrompt?.description || (activePrompt ? activePrompt.text.slice(0, 180) : DEFAULT_DESCRIPTION);
+    const image = activePrompt?.afterImage || activePrompt?.previewImage || activePrompt?.beforeImage || `${window.location.origin}/favicon.svg`;
+
+    document.title = title;
+    upsertCanonical(url);
+    upsertMeta('meta[name="description"]', { name: 'description', content: description });
+    upsertMeta('meta[property="og:type"]', { property: 'og:type', content: activePrompt ? 'article' : 'website' });
+    upsertMeta('meta[property="og:title"]', { property: 'og:title', content: title });
+    upsertMeta('meta[property="og:description"]', { property: 'og:description', content: description });
+    upsertMeta('meta[property="og:url"]', { property: 'og:url', content: url });
+    upsertMeta('meta[property="og:image"]', { property: 'og:image', content: image });
+    upsertMeta('meta[name="twitter:card"]', { name: 'twitter:card', content: 'summary_large_image' });
+    upsertMeta('meta[name="twitter:title"]', { name: 'twitter:title', content: title });
+    upsertMeta('meta[name="twitter:description"]', { name: 'twitter:description', content: description });
+    upsertMeta('meta[name="twitter:image"]', { name: 'twitter:image', content: image });
+  }, [activePrompt]);
+
   const filteredPrompts = useMemo(() => {
     if (remoteResults) return remoteResults;
     const term = query.trim().toLowerCase().replace('#', '');
@@ -183,16 +255,46 @@ export default function App() {
 
   const favoritePrompts = useMemo(() => promptItems.filter((item) => favoriteIds.includes(item.id)), [favoriteIds, promptItems]);
 
-  function copyText(text, title, id) {
-    navigator.clipboard.writeText(text);
+  function showNotice(message) {
+    setNotice(message);
+    window.setTimeout(() => setNotice(''), 1800);
+  }
+
+  async function copyText(text, title, id) {
+    await navigator.clipboard.writeText(text);
     if (id) trackPromptAction(id, 'copy');
-    setCopied(title);
-    window.setTimeout(() => setCopied(''), 1800);
+    showNotice(`${title} ${t.copied}`);
   }
 
   function openPrompt(item) {
+    const path = `/prompt/${encodeURIComponent(item.slug)}`;
+    if (window.location.pathname !== path) window.history.pushState({ promptstanPrompt: true }, '', path);
     setActivePrompt(item);
     trackPromptAction(item.id, 'view');
+  }
+
+  function closePrompt() {
+    if (window.location.pathname.startsWith('/prompt/')) window.history.pushState({}, '', '/');
+    setActivePrompt(null);
+  }
+
+  async function sharePrompt(item) {
+    const url = `${window.location.origin}/prompt/${encodeURIComponent(item.slug)}`;
+    const shareData = { title: item.title, text: item.description || item.text.slice(0, 120), url };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(url);
+        showNotice(t.linkCopied);
+      }
+    } catch (error) {
+      if (error?.name !== 'AbortError') {
+        await navigator.clipboard.writeText(url);
+        showNotice(t.linkCopied);
+      }
+    }
   }
 
   function toggleFavorite(id) {
@@ -224,20 +326,23 @@ export default function App() {
   };
 
   return <main className={isLtr ? 'app ltr' : 'app'} dir={isLtr ? 'ltr' : 'rtl'}>
-    {copied && <div className="toast">✅ {copied} {t.copied}</div>}
+    {notice && <div className="toast">✅ {notice}</div>}
 
-    {activePrompt && <div className="modalOverlay" onClick={() => setActivePrompt(null)}>
+    {activePrompt && <div className="modalOverlay" onClick={closePrompt}>
       <section className="promptModal" onClick={(event) => event.stopPropagation()}>
-        <button className="modalClose" onClick={() => setActivePrompt(null)}><X size={20} /></button>
+        <button className="modalClose" onClick={closePrompt} aria-label="close"><X size={20} /></button>
         <VisualPreview item={activePrompt} t={t} type="modal" />
         <div className="modalContent">
           <div className="promptMeta modalMeta"><span>{activePrompt.category}</span><span>⭐ {activePrompt.rating}</span><span>👁 {activePrompt.views}</span><span>📋 {activePrompt.copies}</span></div>
           <h2>{activePrompt.title}</h2>
-          <p className="modalDescription">{t.modalDesc}</p>
+          <p className="modalDescription">{activePrompt.description || t.modalDesc}</p>
           <div className="promptBox"><div className="promptBoxHeader"><strong>{t.prompt}</strong><button onClick={() => copyText(activePrompt.text, activePrompt.title, activePrompt.id)}><Copy size={16} /> {t.copy}</button></div><p>{activePrompt.text}</p></div>
           <div className="tagList">{(activePrompt.tags || []).map((tag) => <button key={tag} onClick={() => setQuery(`#${tag}`)}>#{tag}</button>)}</div>
           <div className="modelGrid"><span>ChatGPT Images</span><span>Gemini</span><span>Flux</span><span>Midjourney</span></div>
-          <button className={favoriteIds.includes(activePrompt.id) ? 'favoriteWide active' : 'favoriteWide'} onClick={() => toggleFavorite(activePrompt.id)}><Heart size={18} fill={favoriteIds.includes(activePrompt.id) ? 'currentColor' : 'none'} /> {favoriteIds.includes(activePrompt.id) ? t.inFav : t.addFav}</button>
+          <div className="modalActionRow">
+            <button className={favoriteIds.includes(activePrompt.id) ? 'favoriteWide active' : 'favoriteWide'} onClick={() => toggleFavorite(activePrompt.id)}><Heart size={18} fill={favoriteIds.includes(activePrompt.id) ? 'currentColor' : 'none'} /> {favoriteIds.includes(activePrompt.id) ? t.inFav : t.addFav}</button>
+            <button className="shareWide" onClick={() => sharePrompt(activePrompt)}><Share2 size={18} /> {t.share}<Link2 size={15} /></button>
+          </div>
         </div>
       </section>
     </div>}
