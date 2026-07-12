@@ -20,10 +20,11 @@
 ## Current
 
 6. **Content scale**
-   - ⏳ Larger automatic prompt rotation
-   - ⏳ Duplicate prevention
+   - ✅ 240-combination automatic prompt rotation
+   - ✅ Exact and near-duplicate prevention for Admin and bot posts
+   - ✅ Deterministic quality scoring before bot publishing
+   - ✅ Admin duplicate scanner and next-candidate preview
    - ⏳ Scheduling controls
-   - ⏳ AI quality scoring before publishing
    - ⏳ Managed Before/After image batches
 
 ## Next
