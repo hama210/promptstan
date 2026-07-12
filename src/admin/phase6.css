@@ -1,0 +1,267 @@
+.phase6Card {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(0,245,160,.2);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(0,245,160,.13), transparent 34%),
+    radial-gradient(circle at 0% 100%, rgba(139,92,246,.14), transparent 38%),
+    rgba(20,20,26,.9);
+}
+
+.phase6Header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.phase6Badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 12px;
+  padding: 7px 11px;
+  border: 1px solid rgba(0,245,160,.3);
+  border-radius: 999px;
+  background: rgba(0,245,160,.08);
+  color: #00f5a0;
+  font-size: .78rem;
+  font-weight: 850;
+}
+
+.phase6Protection {
+  flex: 0 0 auto;
+  min-width: 180px;
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  padding: 17px;
+  border: 1px solid rgba(0,245,160,.28);
+  border-radius: 20px;
+  background: rgba(0,245,160,.07);
+  color: #00f5a0;
+}
+
+.phase6Protection strong {
+  font-size: 1rem;
+}
+
+.phase6Protection span {
+  color: #8fdcc4;
+  font-size: .72rem;
+}
+
+.phase6Stats {
+  margin-top: 18px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.phase6Candidate {
+  margin-top: 8px;
+  padding: 18px;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 22px;
+  background: rgba(255,255,255,.035);
+}
+
+.phase6CandidateTitle {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.phase6CandidateTitle > svg {
+  flex: 0 0 auto;
+  color: #00f5a0;
+}
+
+.phase6CandidateTitle div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.phase6CandidateTitle span {
+  color: #92929f;
+  font-size: .78rem;
+}
+
+.phase6CandidateTitle strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #f8f8fb;
+  font-size: 1.06rem;
+}
+
+.phase6CandidateMeta,
+.phase6Tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.phase6CandidateMeta span,
+.phase6Tags span {
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.055);
+  color: #c9c9d3;
+  font-size: .72rem;
+}
+
+.phase6CandidateMeta span:first-child {
+  background: rgba(0,245,160,.1);
+  color: #00f5a0;
+}
+
+.phase6Tags span {
+  color: #b9a8ff;
+}
+
+.phase6Actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.phase6Actions button {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 15px;
+  background: rgba(255,255,255,.055);
+  color: #f4f4f8;
+  font-weight: 850;
+}
+
+.phase6Actions button:hover {
+  border-color: rgba(0,245,160,.42);
+  background: rgba(0,245,160,.09);
+}
+
+.phase6Actions .phase6Publish {
+  border: 0;
+  background: linear-gradient(135deg, #8b5cf6, #00f5a0);
+  color: #07100d;
+}
+
+.phase6Message {
+  margin-top: 14px;
+  margin-bottom: 0;
+}
+
+.phase6ScanResults {
+  display: grid;
+  grid-template-columns: 160px 160px minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.phase6ScanResults > div {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  min-height: 90px;
+  padding: 14px;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 17px;
+  background: rgba(255,255,255,.035);
+}
+
+.phase6ScanResults > div strong {
+  color: #00f5a0;
+  font-size: 1.6rem;
+}
+
+.phase6ScanResults > div span {
+  color: #9696a2;
+  font-size: .76rem;
+}
+
+.phase6ScanResults ol {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.phase6ScanResults li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 14px;
+  background: rgba(255,255,255,.03);
+}
+
+.phase6ScanResults li div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.phase6ScanResults li strong,
+.phase6ScanResults li span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.phase6ScanResults li span {
+  color: #9696a2;
+  font-size: .76rem;
+}
+
+.phase6ScanResults li b {
+  flex: 0 0 auto;
+  color: #fbbf24;
+}
+
+@media (max-width: 900px) {
+  .phase6Stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .phase6Header {
+    flex-direction: column;
+  }
+
+  .phase6Protection {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: auto auto 1fr;
+    justify-items: start;
+    align-items: center;
+  }
+
+  .phase6Actions {
+    grid-template-columns: 1fr;
+  }
+
+  .phase6ScanResults {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .phase6Stats,
+  .phase6ScanResults {
+    grid-template-columns: 1fr;
+  }
+
+  .phase6CandidateTitle strong {
+    white-space: normal;
+  }
+}

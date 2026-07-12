@@ -1,7 +1,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
-import AdminPanel from "./admin/AdminPanelV5.jsx";
+import AdminPanel from "./admin/AdminPanelV6.jsx";
 import "./shareAnalytics.js";
 import "./styles.css";
 import "./category-fix.css";
@@ -9,6 +9,7 @@ import "./no-categories.css";
 import "./shareable-prompts.css";
 import "./admin/admin.css";
 import "./admin/campaign.css";
+import "./admin/phase6.css";
 
 const isAdmin = window.location.pathname.startsWith("/admin");
 
