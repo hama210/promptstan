@@ -1,8 +1,13 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "promptstan-api",
-  "main": "worker/entry-fixed.js",
-  "compatibility_date": "2026-07-08",
+  "main": "worker/entry-v6.js",
+  "compatibility_date": "2026-07-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
   "triggers": {
     "crons": ["0 * * * *"]
   },

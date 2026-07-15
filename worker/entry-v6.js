@@ -1,4 +1,6 @@
 import app from './entry.js';
+import { recordReferral } from './analytics.js';
+import { isAdminRequest } from './auth.js';
 import { ensurePromptImageColumns, ensurePromptImages, getPromptById, getConfiguredImageProvider } from './auto-images.js';
 import {
   CONTENT_SCALE_VERSION,
@@ -24,18 +26,29 @@ import {
   shouldRunImageBatch,
   shouldRunPosting
 } from './automation.js';
+import {
+  GROWTH_INTELLIGENCE_VERSION,
+  getGrowthIntelligence,
+  recordConversionEvent
+} from './growth-intelligence.js';
+import { restoreKnownLibrary } from './library-restore.js';
+import { exportProjectData } from './operations.js';
 
 const JSON_HEADERS = {
   'content-type': 'application/json; charset=utf-8',
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET,POST,PUT,DELETE,OPTIONS',
-  'access-control-allow-headers': 'content-type, authorization, x-promptstan-bootstrap',
+  'access-control-allow-headers': 'content-type, authorization',
   'cache-control': 'no-store'
 };
 
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: JSON_HEADERS });
+    }
 
     if (url.pathname === '/api/health') {
       return json({
@@ -47,8 +60,37 @@ export default {
         growth_phase: 'privacy-analytics-v1',
         content_scale: CONTENT_SCALE_VERSION,
         rotation_count: ROTATION_COUNT,
-        automation: AUTOMATION_VERSION
+        automation: AUTOMATION_VERSION,
+        growth_intelligence: GROWTH_INTELLIGENCE_VERSION,
+        stabilization: 'single-source-v1'
       });
+    }
+
+    if (url.pathname === '/api/referral-event' && request.method === 'POST') {
+      return recordReferral(request, env);
+    }
+
+    if (url.pathname === '/api/conversion-event' && request.method === 'POST') {
+      return recordConversionEvent(request, env);
+    }
+
+    if (url.pathname === '/api/admin/growth-intelligence' && request.method === 'GET') {
+      return adminOnly(request, env, async () => {
+        const days = Number(url.searchParams.get('days') || 30);
+        return json(await getGrowthIntelligence(env, days));
+      });
+    }
+
+    if (url.pathname === '/api/bootstrap' && request.method === 'POST') {
+      return adminOnly(request, env, async () => restoreLibrary(env));
+    }
+
+    if (url.pathname === '/api/admin/library/restore' && request.method === 'POST') {
+      return adminOnly(request, env, async () => restoreLibrary(env));
+    }
+
+    if (url.pathname === '/api/admin/export' && request.method === 'GET') {
+      return adminOnly(request, env, async () => json(await exportProjectData(env)));
     }
 
     if (url.pathname === '/api/admin/content-scale/status' && request.method === 'GET') {
@@ -190,8 +232,14 @@ async function runScheduledAutomation(env, now = new Date()) {
   return result;
 }
 
+async function restoreLibrary(env) {
+  await ensurePromptImageColumns(env);
+  const result = await restoreKnownLibrary(env);
+  return json(result, result.inserted > 0 ? 201 : 200);
+}
+
 async function protectPromptWrite(request, env, ctx, editingId) {
-  if (!requireAdmin(request, env)) return json({ error: 'Unauthorized' }, 401);
+  if (!(await isAdminRequest(request, env))) return json({ error: 'Unauthorized' }, 401);
 
   let body;
   try {
@@ -434,13 +482,8 @@ async function attachTags(env, promptId, tags) {
   if (statements.length) await env.DB.batch(statements);
 }
 
-function requireAdmin(request, env) {
-  const token = request.headers.get('authorization')?.replace('Bearer ', '') || '';
-  return Boolean(env.ADMIN_TOKEN && token === env.ADMIN_TOKEN);
-}
-
 async function adminOnly(request, env, handler) {
-  if (!requireAdmin(request, env)) return json({ error: 'Unauthorized' }, 401);
+  if (!(await isAdminRequest(request, env))) return json({ error: 'Unauthorized' }, 401);
   try {
     return await handler();
   } catch (error) {

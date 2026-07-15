@@ -1,19 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Copy, Eye, Flame, Globe2, Heart, Home, Layers, Link2, Search, Share2, Sparkles, Star, Wand2, X, Zap } from 'lucide-react';
-import { categories as staticCategories, promptItems as staticPrompts, tags as staticTags } from './data/site.js';
+import { Copy, Eye, Flame, Globe2, Heart, Home, Link2, Search, Share2, Sparkles, Star, Wand2, X, Zap } from 'lucide-react';
+import { promptItems as staticPrompts, tags as staticTags } from './data/site.js';
+import { publicUrl } from './config/runtime.js';
 import { getPromptBySlug, loadLibraryData, normalizePrompt, searchLibrary, trackPromptAction } from './services/liveApiLibrary.js';
 
 const languages = [
   { code: 'KU', label: 'کوردی', flag: '☀️' },
   { code: 'EN', label: 'English', flag: '🇬🇧' },
   { code: 'AR', label: 'العربية', flag: '🇸🇦' }
-];
-
-const collections = [
-  { label: 'TikTok Viral', query: 'viral' },
-  { label: 'Wedding', query: 'wedding' },
-  { label: 'Luxury', query: 'luxury' },
-  { label: 'Instagram', query: 'instagram' }
 ];
 
 const ui = {
@@ -30,9 +24,6 @@ const ui = {
     preview: 'پێشبینین',
     share: 'هاوبەشکردن',
     linkCopied: 'لینکی پرۆمپتەکە کۆپی کرا',
-    categories: 'پۆلەکان',
-    openCategories: 'کردنەوەی پۆلەکان',
-    closeCategories: 'داخستنی پۆلەکان',
     trending: 'ترێند لەم هەفتەیە',
     popular: 'پرۆمپتە بەناوبانگەکان',
     results: 'ئەنجامی گەڕان',
@@ -42,7 +33,6 @@ const ui = {
     emptyTitle: 'هێشتا هیچ پرۆمپتێکت دڵخواز نەکردووە',
     emptyDesc: 'لەسەر دڵی هەر کارتەک کلیک بکە بۆ پاراستنی لە دڵخوازەکانت.',
     noResults: 'هیچ پرۆمپتێک بۆ ئەم گەڕانە نەدۆزرایەوە.',
-    collections: 'کۆمەڵەکان',
     related: 'پرۆمپتی پەیوەندیدار',
     home: 'ماڵەوە',
     modalDesc: 'ئەم پرۆمپتە ئامادەیە بۆ کۆپی کردن و بەکارهێنان لە ChatGPT Images، Gemini، Flux، Midjourney و هەر ئامرازی AI ـیەکی وێنە.',
@@ -66,9 +56,6 @@ const ui = {
     preview: 'Preview',
     share: 'Share',
     linkCopied: 'Prompt link copied',
-    categories: 'Categories',
-    openCategories: 'Open categories',
-    closeCategories: 'Close categories',
     trending: 'Trending this week',
     popular: 'Popular prompts',
     results: 'Search results',
@@ -78,7 +65,6 @@ const ui = {
     emptyTitle: 'No favorites yet',
     emptyDesc: 'Tap the heart on any card to save it here.',
     noResults: 'No prompts matched this search.',
-    collections: 'Collections',
     related: 'Related prompts',
     home: 'Home',
     modalDesc: 'This prompt is ready to copy and use with ChatGPT Images, Gemini, Flux, Midjourney, and other AI image tools.',
@@ -102,9 +88,6 @@ const ui = {
     preview: 'معاينة',
     share: 'مشاركة',
     linkCopied: 'تم نسخ رابط الموجه',
-    categories: 'الأقسام',
-    openCategories: 'فتح الأقسام',
-    closeCategories: 'إغلاق الأقسام',
     trending: 'الرائج هذا الأسبوع',
     popular: 'الموجهات الشائعة',
     results: 'نتائج البحث',
@@ -114,7 +97,6 @@ const ui = {
     emptyTitle: 'لا توجد مفضلات بعد',
     emptyDesc: 'اضغط على القلب في أي بطاقة لحفظه هنا.',
     noResults: 'لم يتم العثور على موجهات مطابقة.',
-    collections: 'المجموعات',
     related: 'موجهات مشابهة',
     home: 'الرئيسية',
     modalDesc: 'هذا الموجه جاهز للنسخ والاستخدام مع ChatGPT Images و Gemini و Flux و Midjourney وأدوات صور AI الأخرى.',
@@ -190,14 +172,11 @@ export default function App() {
   const [notice, setNotice] = useState('');
   const [activePrompt, setActivePrompt] = useState(null);
   const [language, setLanguage] = useState('KU');
-  const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [library, setLibrary] = useState({
-    categories: staticCategories,
     prompts: initialStaticPrompts,
     tags: staticTags,
-    source: 'static',
-    liveCount: 0,
-    staticCount: initialStaticPrompts.length
+    source: 'fallback',
+    liveCount: 0
   });
   const [remoteResults, setRemoteResults] = useState(null);
   const [favoriteIds, setFavoriteIds] = useState(() => {
@@ -207,9 +186,8 @@ export default function App() {
   const t = ui[language];
   const isLtr = language === 'EN';
   const promptItems = library.prompts;
-  const categories = library.categories;
   const tags = library.tags;
-  const featuredPrompt = promptItems[0] || initialStaticPrompts[0];
+  const featuredPrompt = promptItems[0] || (library.source === 'fallback' ? initialStaticPrompts[0] : null);
 
   useEffect(() => { loadLibraryData().then(setLibrary); }, []);
 
@@ -272,10 +250,10 @@ export default function App() {
   }, [activePrompt]);
 
   useEffect(() => {
-    const url = activePrompt ? `${window.location.origin}/prompt/${encodeURIComponent(activePrompt.slug)}` : window.location.origin;
+    const url = activePrompt ? publicUrl(`/prompt/${encodeURIComponent(activePrompt.slug)}`) : publicUrl('/');
     const title = activePrompt ? `${activePrompt.title} | Promptstan` : DEFAULT_TITLE;
     const description = activePrompt?.description || (activePrompt ? activePrompt.text.slice(0, 180) : DEFAULT_DESCRIPTION);
-    const image = activePrompt?.afterImage || activePrompt?.previewImage || activePrompt?.beforeImage || `${window.location.origin}/favicon.svg`;
+    const image = activePrompt?.afterImage || activePrompt?.previewImage || activePrompt?.beforeImage || publicUrl('/favicon.svg');
 
     document.title = title;
     upsertCanonical(url);
@@ -353,7 +331,7 @@ export default function App() {
   }
 
   async function sharePrompt(item) {
-    const url = `${window.location.origin}/prompt/${encodeURIComponent(item.slug)}`;
+    const url = publicUrl(`/prompt/${encodeURIComponent(item.slug)}`);
     const shareData = { title: item.title, text: item.description || item.text.slice(0, 120), url };
 
     try {
@@ -385,24 +363,13 @@ export default function App() {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
   }
 
-  function chooseCategory(name) {
-    setQuery(name);
-    setCategoriesOpen(false);
-    scrollToSection('prompts');
-  }
-
-  function chooseCollection(collection) {
-    setQuery(collection.query);
-    scrollToSection('prompts');
-  }
-
   const PromptCard = ({ item }) => {
     const isFavorite = isFavoritePrompt(item, favoriteIds);
 
-    return <article className="promptCard">
+    return <article className="promptCard" data-prompt-slug={item.slug}>
       <button className={isFavorite ? 'heartButton active' : 'heartButton'} onClick={() => toggleFavorite(item)} aria-label="favorite"><Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} /></button>
       <VisualPreview item={item} t={t} />
-      <div className="promptMeta"><span>{item.category}</span><span>⭐ {item.rating}</span><span>👁 {item.views}</span><span>📋 {item.copies}</span></div>
+      <div className="promptMeta"><span>⭐ {item.rating}</span><span>👁 {item.views}</span><span>📋 {item.copies}</span></div>
       <h3>{item.title}</h3>
       <p>{item.text}</p>
       <div className="tagList miniTags">{(item.tags || []).slice(0, 3).map((tag) => <button key={tag} onClick={() => setQuery(`#${tag}`)}>#{tag}</button>)}</div>
@@ -415,19 +382,19 @@ export default function App() {
   };
 
   const activeIsFavorite = activePrompt ? isFavoritePrompt(activePrompt, favoriteIds) : false;
-  const sourceLabel = library.source === 'hybrid'
-    ? `${library.liveCount} Live + ${library.staticCount} Library`
-    : 'Built-in Library';
+  const sourceLabel = library.source === 'live'
+    ? `${library.liveCount} Live Prompts`
+    : 'Offline Backup';
 
   return <main className={isLtr ? 'app ltr' : 'app'} dir={isLtr ? 'ltr' : 'rtl'}>
     {notice && <div className="toast">✅ {notice}</div>}
 
     {activePrompt && <div className="modalOverlay" onClick={closePrompt}>
-      <section className="promptModal" onClick={(event) => event.stopPropagation()}>
+      <section className="promptModal" data-prompt-slug={activePrompt.slug} onClick={(event) => event.stopPropagation()}>
         <button className="modalClose" onClick={closePrompt} aria-label="close"><X size={20} /></button>
         <VisualPreview item={activePrompt} t={t} type="modal" />
         <div className="modalContent">
-          <div className="promptMeta modalMeta"><span>{activePrompt.category}</span><span>⭐ {activePrompt.rating}</span><span>👁 {activePrompt.views}</span><span>📋 {activePrompt.copies}</span></div>
+          <div className="promptMeta modalMeta"><span>⭐ {activePrompt.rating}</span><span>👁 {activePrompt.views}</span><span>📋 {activePrompt.copies}</span></div>
           <h2>{activePrompt.title}</h2>
           <p className="modalDescription">{activePrompt.description || t.modalDesc}</p>
           <div className="promptBox"><div className="promptBoxHeader"><strong>{t.prompt}</strong><button onClick={() => copyText(activePrompt.text, activePrompt.title, activePrompt.trackId)}><Copy size={16} /> {t.copy}</button></div><p>{activePrompt.text}</p></div>
@@ -439,7 +406,7 @@ export default function App() {
           </div>
           {relatedPrompts.length > 0 && <div className="relatedPrompts">
             <h3>{t.related}</h3>
-            <div className="relatedPromptGrid">{relatedPrompts.map((item) => <button key={item.key} onClick={() => openPrompt(item)}><span>{item.badge}</span><strong>{item.title}</strong><small>{item.category}</small></button>)}</div>
+            <div className="relatedPromptGrid">{relatedPrompts.map((item) => <button key={item.key} onClick={() => openPrompt(item)}><span>{item.badge}</span><strong>{item.title}</strong></button>)}</div>
           </div>}
         </div>
       </section>
@@ -449,18 +416,14 @@ export default function App() {
 
     <section className="hero" id="home"><div className="heroBadge"><Sparkles size={18} /> {t.free}</div><h1>{t.hero}</h1><p>{t.desc}</p><div className="searchBox" id="search"><Search size={22} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t.searchPlaceholder} /><button onClick={() => scrollToSection('prompts')}><Search size={18} /> {t.search}</button></div><div className="tags">{tags.map((tag) => <button key={tag} onClick={() => setQuery(tag.replace('#', ''))}>{tag}</button>)}</div></section>
 
-    <section className="feature"><VisualPreview item={featuredPrompt} t={t} type="feature" /><div className="featureText"><div className="sectionLabel"><Star size={18} /> {t.today}</div><h2>{featuredPrompt.title}</h2><p>{t.todayDesc}</p><div className="featureStats"><span><Eye size={16} /> {featuredPrompt.views}</span><span><Heart size={16} /> {favoritePrompts.length}</span><span><Zap size={16} /> {featuredPrompt.copies}</span></div><div className="featureActions"><button className="primary" onClick={() => copyText(featuredPrompt.text, featuredPrompt.title, featuredPrompt.trackId)}>📋 {t.copyPrompt}</button><button className="previewButton" onClick={() => openPrompt(featuredPrompt)}><Eye size={18} /> {t.preview}</button><button className="cardShareButton featureShare" onClick={() => sharePrompt(featuredPrompt)} aria-label={t.share}><Share2 size={18} /></button></div></div></section>
+    {featuredPrompt && <section className="feature" data-prompt-slug={featuredPrompt.slug}><VisualPreview item={featuredPrompt} t={t} type="feature" /><div className="featureText"><div className="sectionLabel"><Star size={18} /> {t.today}</div><h2>{featuredPrompt.title}</h2><p>{t.todayDesc}</p><div className="featureStats"><span><Eye size={16} /> {featuredPrompt.views}</span><span><Heart size={16} /> {favoritePrompts.length}</span><span><Zap size={16} /> {featuredPrompt.copies}</span></div><div className="featureActions"><button className="primary" onClick={() => copyText(featuredPrompt.text, featuredPrompt.title, featuredPrompt.trackId)}>📋 {t.copyPrompt}</button><button className="previewButton" onClick={() => openPrompt(featuredPrompt)}><Eye size={18} /> {t.preview}</button><button className="cardShareButton featureShare" onClick={() => sharePrompt(featuredPrompt)} aria-label={t.share}><Share2 size={18} /></button></div></div></section>}
 
     <section className="section"><div className="sectionTitle"><h2><Flame size={24} /> {t.trending}</h2><a>{promptItems.slice(0, 3).length} {t.promptCount}</a></div><div className="miniRow">{promptItems.slice(0, 3).map((item) => <button key={item.key} className="miniTrend" onClick={() => openPrompt(item)}><span>{item.badge}</span><strong>{item.title}</strong><small>👁 {item.views} • 📋 {item.copies}</small></button>)}</div></section>
 
-    <section className="collections"><h2>💎 {t.collections}</h2><div className="collectionRow">{collections.map((collection) => <button key={collection.query} className={query.toLowerCase() === collection.query ? 'active' : ''} onClick={() => chooseCollection(collection)}>{collection.label}</button>)}</div></section>
+    <section className="section" id="prompts"><div className="sectionTitle"><h2><Flame size={24} /> {query ? t.results : t.popular}</h2><a>{filteredPrompts.length} {t.promptCount}</a></div>{filteredPrompts.length > 0 ? <div className="promptGrid">{filteredPrompts.map((item) => <PromptCard item={item} key={item.key} />)}</div> : <div className="emptyState"><Search size={34} /><h3>{t.noResults}</h3><button className="primary" onClick={() => setQuery('')}>{t.popular}</button></div>}</section>
 
-    <section className="section" id="prompts"><div className="sectionTitle"><h2><Flame size={24} /> {query ? t.results : t.popular}</h2><a>{filteredPrompts.length} {t.promptCount}</a></div>{filteredPrompts.length > 0 ? <div className="promptGrid">{filteredPrompts.map((item) => <PromptCard item={item} key={item.key} />)}</div> : <div className="emptyState"><Search size={34} /><h3>{t.noResults}</h3><button className="categoryToggle" onClick={() => setQuery('')}>{t.popular}</button></div>}</section>
-
-    <section className="section" id="favorites"><div className="sectionTitle"><h2><Heart size={24} /> {t.favorites}</h2><a>{favoritePrompts.length} {t.selected}</a></div>{favoritePrompts.length === 0 ? <div className="emptyState"><Heart size={34} /><h3>{t.emptyTitle}</h3><p>{t.emptyDesc}</p></div> : <div className="miniRow">{favoritePrompts.map((item) => <button key={item.key} className="miniTrend" onClick={() => openPrompt(item)}><span>❤️ {t.favorites}</span><strong>{item.title}</strong><small>{item.category}</small></button>)}</div>}</section>
-
-    <section className="section categoryDrawer" id="categories"><div className="sectionTitle"><h2>📂 {t.categories}</h2><button className="categoryToggle" onClick={() => setCategoriesOpen((open) => !open)}>{categoriesOpen ? t.closeCategories : t.openCategories}</button></div>{categoriesOpen && <div className="categoryPanel"><div className="categoryGrid">{categories.map((category) => <button className="categoryCard" key={category.slug} onClick={() => chooseCategory(category.name)}><span>{category.icon}</span><strong>{category.name}</strong><small>{category.count} {t.promptCount}</small></button>)}</div></div>}</section>
+    <section className="section" id="favorites"><div className="sectionTitle"><h2><Heart size={24} /> {t.favorites}</h2><a>{favoritePrompts.length} {t.selected}</a></div>{favoritePrompts.length === 0 ? <div className="emptyState"><Heart size={34} /><h3>{t.emptyTitle}</h3><p>{t.emptyDesc}</p></div> : <div className="miniRow">{favoritePrompts.map((item) => <button key={item.key} className="miniTrend" onClick={() => openPrompt(item)}><span>❤️ {t.favorites}</span><strong>{item.title}</strong></button>)}</div>}</section>
     <footer><strong>پڕۆمپتستان</strong><p>هەموو پرۆمپتێک، لە شوێنێک.</p></footer>
-    <nav className="bottomNav"><button onClick={() => scrollToSection('home')}><Home size={20} /><span>{t.home}</span></button><button onClick={() => scrollToSection('search')}><Search size={20} /><span>{t.search}</span></button><button onClick={() => scrollToSection('favorites')}><Heart size={20} /><span>{favoritePrompts.length}</span></button><button onClick={() => scrollToSection('categories')}><Layers size={20} /><span>{t.categories}</span></button><button onClick={() => setLanguage(language === 'KU' ? 'EN' : language === 'EN' ? 'AR' : 'KU')}><Globe2 size={20} /><span>{language}</span></button></nav>
+    <nav className="bottomNav"><button onClick={() => scrollToSection('home')}><Home size={20} /><span>{t.home}</span></button><button onClick={() => scrollToSection('search')}><Search size={20} /><span>{t.search}</span></button><button onClick={() => scrollToSection('favorites')}><Heart size={20} /><span>{favoritePrompts.length}</span></button><button onClick={() => setLanguage(language === 'KU' ? 'EN' : language === 'EN' ? 'AR' : 'KU')}><Globe2 size={20} /><span>{language}</span></button></nav>
   </main>;
 }

@@ -1,20 +1,18 @@
 import app from './index.js';
+import { isAdminRequest } from './auth.js';
 import { adminUpdatePrompt, adminRetryPromptImages } from './admin-extra.js';
 import { adminAnalytics, recordPromptShare, recordSearch } from './analytics.js';
 import { ensurePromptImageColumns, getConfiguredImageProvider } from './auto-images.js';
-import { getFallbackPrompt } from './fallback-prompts.js';
 import { serveSitemap } from './sitemap.js';
 
 const IMAGE_PIPELINE_VERSION = 'flux2-klein-sync-v7';
 const LAUNCH_PHASE_VERSION = 'shareable-prompts-v1';
 const GROWTH_PHASE_VERSION = 'privacy-analytics-v1';
-const BOOTSTRAP_HEADER = 'empty-library-v1';
-const STARTER_SLUG = 'starter-solo-cinematic-portrait';
 const JSON_HEADERS = {
   'content-type': 'application/json; charset=utf-8',
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'GET,POST,PUT,DELETE,OPTIONS',
-  'access-control-allow-headers': 'content-type, authorization, x-promptstan-bootstrap'
+  'access-control-allow-headers': 'content-type, authorization'
 };
 
 export default {
@@ -30,10 +28,6 @@ export default {
         launch_phase: LAUNCH_PHASE_VERSION,
         growth_phase: GROWTH_PHASE_VERSION
       });
-    }
-
-    if (url.pathname === '/api/bootstrap' && request.method === 'POST') {
-      return bootstrapEmptyLibrary(request, env);
     }
 
     if (url.pathname === '/api/share' && request.method === 'POST') {
@@ -83,82 +77,6 @@ export default {
   }
 };
 
-async function bootstrapEmptyLibrary(request, env) {
-  if (request.headers.get('x-promptstan-bootstrap') !== BOOTSTRAP_HEADER) {
-    return json({ error: 'Unauthorized' }, 401, { 'cache-control': 'no-store' });
-  }
-
-  try {
-    await ensurePromptImageColumns(env);
-    const count = await env.DB.prepare('SELECT COUNT(*) AS total FROM prompts').first();
-
-    if (Number(count?.total || 0) > 0) {
-      return json({ ok: true, skipped: true, reason: 'Prompt library is not empty' }, 200, {
-        'cache-control': 'no-store'
-      });
-    }
-
-    await env.DB.prepare(`
-      INSERT OR IGNORE INTO categories (slug, icon, name_ku, name_en, name_ar)
-      VALUES ('person-edit', '👤', 'دەستکاری کەس', 'Person Edit', 'تعديل الأشخاص')
-    `).run();
-
-    const category = await env.DB.prepare(
-      'SELECT id FROM categories WHERE slug = ? LIMIT 1'
-    ).bind('person-edit').first();
-
-    if (!category?.id) throw new Error('Could not create the starter category');
-
-    const fallback = getFallbackPrompt('prompt-1');
-    await env.DB.prepare(`
-      INSERT OR IGNORE INTO prompts (
-        slug,
-        category_id,
-        title_ku,
-        title_en,
-        title_ar,
-        description_ku,
-        description_en,
-        description_ar,
-        prompt_text,
-        image_status,
-        difficulty,
-        rating,
-        is_featured,
-        is_trending,
-        published_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 'easy', 5.0, 1, 1, CURRENT_TIMESTAMP)
-    `).bind(
-      STARTER_SLUG,
-      category.id,
-      fallback?.title_ku || 'پۆرترێتی سینەمایی بۆ یەک کەس',
-      fallback?.title_en || 'Solo Cinematic Portrait',
-      'بورتريه سينمائي لشخص واحد',
-      fallback?.description_ku || 'پرۆمپتێکی ئامادە بۆ دروستکردنی پۆرترێتێکی سینەمایی و ڕاستەقینە.',
-      fallback?.description_en || 'A ready-to-use prompt for a realistic cinematic portrait.',
-      'موجه جاهز لإنشاء صورة شخصية سينمائية واقعية.',
-      fallback?.prompt_text || 'Edit one person into a realistic cinematic portrait, warm golden-hour lighting, sharp facial details, natural skin texture, soft background blur, professional photography style, high quality.'
-    ).run();
-
-    const prompt = await env.DB.prepare(`
-      SELECT prompts.*, categories.name_ku AS category_name
-      FROM prompts
-      JOIN categories ON prompts.category_id = categories.id
-      WHERE prompts.slug = ?
-      LIMIT 1
-    `).bind(STARTER_SLUG).first();
-
-    if (!prompt) throw new Error('Starter prompt was not created');
-
-    return json({ ok: true, created: true, prompt }, 201, { 'cache-control': 'no-store' });
-  } catch (error) {
-    return json({
-      ok: false,
-      error: String(error?.message || error || 'Bootstrap failed').slice(0, 400)
-    }, 500, { 'cache-control': 'no-store' });
-  }
-}
-
 async function servePromptPage(request, env, slug) {
   if (!env.ASSETS) return app.fetch(request, env, {});
 
@@ -170,7 +88,7 @@ async function servePromptPage(request, env, slug) {
     WHERE prompts.slug = ?
     LIMIT 1
   `).bind(slug).first();
-  const prompt = databasePrompt || getFallbackPrompt(slug);
+  const prompt = databasePrompt;
 
   if (!prompt) return app.fetch(request, env, {});
 
@@ -286,14 +204,8 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
-function requireAdmin(request, env) {
-  const header = request.headers.get('authorization') || '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : '';
-  return Boolean(env.ADMIN_TOKEN && token && token === env.ADMIN_TOKEN);
-}
-
 async function adminOnly(request, env, handler) {
-  if (!requireAdmin(request, env)) return json({ error: 'Unauthorized' }, 401);
+  if (!(await isAdminRequest(request, env))) return json({ error: 'Unauthorized' }, 401);
   return handler(request, env);
 }
 

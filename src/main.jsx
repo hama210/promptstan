@@ -1,12 +1,10 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
-import AdminPanel from "./admin/AdminPanelV8.jsx";
-import "./promptIdentityMap.js";
+import AdminPanel from "./admin/AdminDashboard.jsx";
 import "./shareAnalytics.js";
 import "./styles.css";
-import "./category-fix.css";
-import "./no-categories.css";
+import "./preview-images.css";
 import "./shareable-prompts.css";
 import "./admin/admin.css";
 import "./admin/campaign.css";

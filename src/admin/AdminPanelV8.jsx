@@ -16,11 +16,7 @@ import {
   Sparkles,
   Target
 } from 'lucide-react';
-import AdminPanelV7 from './AdminPanelV7.jsx';
-
-const API_BASE = window.location.hostname.includes('workers.dev')
-  ? window.location.origin
-  : 'https://promptstan-api.hhhh46529.workers.dev';
+import { API_BASE } from '../config/runtime.js';
 
 const PERIODS = [
   { value: 7, label: '7 days' },
@@ -163,7 +159,6 @@ export default function AdminPanelV8() {
       {message && <div className="adminMessage intelligenceMessage">{message}</div>}
     </section>
 
-    <AdminPanelV7 />
   </>;
 }
 

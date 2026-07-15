@@ -98,18 +98,6 @@
   align-self: stretch;
 }
 
-.collectionRow button {
-  transition: border-color .18s ease, background .18s ease, color .18s ease, transform .18s ease;
-}
-
-.collectionRow button:hover,
-.collectionRow button.active {
-  color: #00f5a0;
-  border-color: rgba(0, 245, 160, .48);
-  background: rgba(0, 245, 160, .1);
-  transform: translateY(-2px);
-}
-
 .relatedPrompts {
   margin-top: 22px;
   padding-top: 18px;

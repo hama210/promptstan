@@ -55,18 +55,13 @@ jobs:
             -H 'Access-Control-Request-Headers: authorization'
 
           grep -iF 'access-control-allow-origin: *' /tmp/preflight-headers.txt
-          grep -iF 'access-control-allow-headers: content-type, authorization, x-promptstan-bootstrap' /tmp/preflight-headers.txt
+          grep -iF 'access-control-allow-headers: content-type, authorization' /tmp/preflight-headers.txt
           grep -E '^HTTP/.* 204' /tmp/preflight-headers.txt
 
-      - name: Restore the complete known prompt library
+      - name: Verify the complete known prompt library
         run: |
           set -euo pipefail
           APP_BASE="$(cat /tmp/app-base.txt)"
-
-          curl -fsSL -X POST \
-            -H 'x-promptstan-bootstrap: empty-library-v1' \
-            "$APP_BASE/api/bootstrap" | tee /tmp/bootstrap.json
-          grep -F '"ok":true' /tmp/bootstrap.json
 
           prompts="$(curl -fsSL "$APP_BASE/api/prompts")"
           printf '%s\n' "$prompts" | tee /tmp/preview-prompts.json
