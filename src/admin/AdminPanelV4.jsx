@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BarChart3, CalendarClock, Edit3, ImagePlus, KeyRound, Plus, RefreshCw, Search, ShieldCheck, Sparkles, Trash2, X } from 'lucide-react';
-
-const API_BASE = window.location.hostname.includes('workers.dev') ? window.location.origin : 'https://promptstan-api.hhhh46529.workers.dev';
+import { API_BASE } from '../config/runtime.js';
 const emptyPrompt = {
   title_ku: '',
   title_en: '',

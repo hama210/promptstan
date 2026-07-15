@@ -1,8 +1,3 @@
-.categoryDrawer { display: none !important; }
-.bottomNav button:nth-child(4) { display: none !important; }
-.promptMeta span:first-child { display: none !important; }
-.collections { display: none !important; }
-
 .promptImage.hasPreview,
 .modalVisual.hasPreview,
 .featureImage.hasPreview,

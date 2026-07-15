@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BarChart3, Copy, DatabaseBackup, Link2, MousePointerClick, RefreshCw, Search, Share2, ShieldCheck, Wand2 } from 'lucide-react';
-import AdminPanelV4 from './AdminPanelV4.jsx';
-
-const API_BASE = window.location.hostname.includes('workers.dev') ? window.location.origin : 'https://promptstan-api.hhhh46529.workers.dev';
-const PUBLIC_SITE = 'https://promptstan.pages.dev';
+import { BarChart3, Copy, DatabaseBackup, Download, Link2, MousePointerClick, RefreshCw, Search, Share2, ShieldCheck, Wand2 } from 'lucide-react';
+import { API_BASE, PUBLIC_SITE_ORIGIN as PUBLIC_SITE } from '../config/runtime.js';
 
 export default function AdminPanelV5() {
   const [message, setMessage] = useState('');
@@ -161,6 +158,39 @@ export default function AdminPanelV5() {
     }
   }
 
+  async function downloadBackup() {
+    if (!getToken()) {
+      setMessage('Save ADMIN_TOKEN in the panel first.');
+      return;
+    }
+
+    setWorking(true);
+    setMessage('Preparing a D1 content backup...');
+    try {
+      const response = await fetch(`${API_BASE}/api/admin/export`, {
+        headers: getAuthHeaders(),
+        cache: 'no-store'
+      });
+      const data = await readJson(response);
+      if (!response.ok) throw new Error(data.error || 'Backup export failed');
+
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `promptstan-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      setMessage(`Backup downloaded ✅ ${data.prompts?.length || 0} prompts included.`);
+    } catch (error) {
+      setMessage(error.message || 'Backup export failed.');
+    } finally {
+      setWorking(false);
+    }
+  }
+
   async function copyCampaignLink() {
     try {
       await navigator.clipboard.writeText(campaignLink);
@@ -179,6 +209,7 @@ export default function AdminPanelV5() {
       <div className="adminTokenRow adminRepairActions">
         <button type="button" onClick={checkSystem} disabled={working}><ShieldCheck size={17} /> Check system</button>
         <button type="button" onClick={restoreLibrary} disabled={working}><DatabaseBackup size={17} /> Restore all prompts</button>
+        <button type="button" onClick={downloadBackup} disabled={working}><Download size={17} /> Download backup</button>
         <button type="button" onClick={retryMissingImages} disabled={working}><Wand2 size={17} /> Retry missing images</button>
         <button type="button" onClick={() => loadAnalytics(true)} disabled={working}><BarChart3 size={17} /> Refresh analytics</button>
         {working && <span><RefreshCw size={16} /> Working...</span>}
@@ -230,7 +261,6 @@ export default function AdminPanelV5() {
       <div className="campaignLinkOutput"><code>{campaignLink}</code><button type="button" onClick={copyCampaignLink}><Copy size={17} /> Copy campaign link</button></div>
     </section>
 
-    <AdminPanelV4 />
   </>;
 }
 

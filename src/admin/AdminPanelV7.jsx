@@ -1,10 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CalendarClock, CheckCircle2, Clock3, Images, Play, RefreshCw, Save, TimerReset } from 'lucide-react';
-import AdminPanelV6 from './AdminPanelV6.jsx';
-
-const API_BASE = window.location.hostname.includes('workers.dev')
-  ? window.location.origin
-  : 'https://promptstan-api.hhhh46529.workers.dev';
+import { API_BASE } from '../config/runtime.js';
 
 const DEFAULT_SETTINGS = {
   posting_enabled: true,
@@ -238,7 +234,6 @@ export default function AdminPanelV7() {
       {history.length > 0 && <div className="automationHistory"><h3>Recent automation runs</h3><div>{history.slice(0, 8).map((run) => <article key={run.id}><span className={`runStatus ${run.status}`}>{run.status}</span><strong>{run.run_type}</strong><small>{run.local_date || 'manual'} · {run.source}</small><b>{run.succeeded}/{run.processed}</b></article>)}</div></div>}
     </section>
 
-    <AdminPanelV6 />
   </>;
 }
 

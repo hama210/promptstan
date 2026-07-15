@@ -1,6 +1,4 @@
-const API_BASE = window.location.hostname.includes('workers.dev')
-  ? window.location.origin
-  : 'https://promptstan-api.hhhh46529.workers.dev';
+import { API_BASE, publicUrl } from './config/runtime.js';
 
 const SHARE_SELECTOR = '.cardShareButton, .shareWide, .campaignShareButton';
 const COPY_SELECTOR = '.copyButton, .promptBoxHeader button, .featureActions .primary';
@@ -298,7 +296,7 @@ function shareToChannel(source, slug, title) {
 }
 
 function buildPromptUrl(slug, source, medium, campaign) {
-  const url = new URL(`/prompt/${encodeURIComponent(slug)}`, window.location.origin);
+  const url = new URL(publicUrl(`/prompt/${encodeURIComponent(slug)}`));
   applyTracking(url, source, medium, campaign, slug);
   return url.toString();
 }

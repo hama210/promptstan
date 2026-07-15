@@ -1,10 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Bot, CheckCircle2, Gauge, RefreshCw, ScanSearch, ShieldCheck, Sparkles } from 'lucide-react';
-import AdminPanelV5 from './AdminPanelV5.jsx';
-
-const API_BASE = window.location.hostname.includes('workers.dev')
-  ? window.location.origin
-  : 'https://promptstan-api.hhhh46529.workers.dev';
+import { API_BASE } from '../config/runtime.js';
 
 export default function AdminPanelV6() {
   const [status, setStatus] = useState(null);
@@ -157,6 +153,5 @@ export default function AdminPanelV6() {
       </div>}
     </section>
 
-    <AdminPanelV5 />
   </>;
 }

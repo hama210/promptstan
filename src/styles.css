@@ -37,7 +37,7 @@ button, input { font: inherit; } button { cursor: pointer; }
 .languageTabs { display: flex; gap: 6px; padding: 5px; border-radius: 16px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); }
 .languageTabs button { border: 0; border-radius: 12px; background: transparent; color: #c4c4cf; padding: 7px 10px; }
 .languageTabs button.active { background: rgba(0,245,160,.12); color: #00f5a0; }
-.ghost, .primarySmall, .primary, .copyButton, .previewButton, .tags button, .collectionRow button { border: 1px solid rgba(255,255,255,.12); border-radius: 14px; background: rgba(255,255,255,.06); color: white; padding: 10px 14px; display: inline-flex; align-items: center; gap: 8px; }
+.ghost, .primarySmall, .primary, .copyButton, .previewButton, .tags button { border: 1px solid rgba(255,255,255,.12); border-radius: 14px; background: rgba(255,255,255,.06); color: white; padding: 10px 14px; display: inline-flex; align-items: center; gap: 8px; }
 .primarySmall, .primary { border: 0; background: linear-gradient(135deg, #8b5cf6, #00f5a0); color: #07100d; font-weight: 800; }
 .hero { max-width: 960px; margin: 36px auto 70px; padding: 0 20px; text-align: center; }
 .heroBadge { display: inline-flex; align-items: center; gap: 8px; border: 1px solid rgba(0,245,160,.45); color: #00f5a0; background: rgba(0,245,160,.07); padding: 9px 18px; border-radius: 999px; }
@@ -48,9 +48,9 @@ button, input { font: inherit; } button { cursor: pointer; }
 .searchBox input { width: 100%; border: 0; outline: 0; background: transparent; color: white; font-size: 18px; }
 .searchBox button { border: 0; color: #07100d; background: #00f5a0; padding: 12px 22px; border-radius: 16px; font-weight: 800; display: inline-flex; align-items: center; gap: 8px; }
 .tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
-.tags button, .collectionRow button { color: #d4d4dd; border-radius: 999px; }
-.tags button:hover, .collectionRow button:hover { border-color: #00f5a0; color: #00f5a0; }
-.feature, .section, .collections, footer { max-width: 1180px; margin: 0 auto 68px; padding: 0 20px; }
+.tags button { color: #d4d4dd; border-radius: 999px; }
+.tags button:hover { border-color: #00f5a0; color: #00f5a0; }
+.feature, .section, footer { max-width: 1180px; margin: 0 auto 68px; padding: 0 20px; }
 .feature { display: grid; grid-template-columns: 1.1fr .9fr; gap: 24px; align-items: stretch; }
 .featureImage { min-height: 360px; border-radius: 34px; display: flex; align-items: end; justify-content: space-between; padding: 24px; box-shadow: 0 0 70px rgba(0,245,160,.16); position: relative; overflow: hidden; }
 .premiumScene { background: linear-gradient(135deg, rgba(139,92,246,.9), rgba(0,245,160,.72)), radial-gradient(circle at 35% 40%, rgba(255,255,255,.42), transparent 32%); }
@@ -61,15 +61,12 @@ button, input { font: inherit; } button { cursor: pointer; }
 .featureImage b { position: relative; z-index: 2; border-radius: 999px; padding: 10px 16px; background: rgba(0,0,0,.35); backdrop-filter: blur(12px); }
 .featureText { border: 1px solid rgba(255,255,255,.11); border-radius: 34px; background: rgba(20,20,26,.72); padding: 34px; }
 .sectionLabel { display: flex; gap: 8px; align-items: center; color: #00f5a0; }
-.featureText h2, .sectionTitle h2, .collections h2 { font-size: clamp(26px, 4vw, 44px); margin: 12px 0; }
+.featureText h2, .sectionTitle h2 { font-size: clamp(26px, 4vw, 44px); margin: 12px 0; }
 .featureText p { color: #c4c4cf; line-height: 1.9; }
 .featureStats { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0; }
 .featureStats span { display: inline-flex; align-items: center; gap: 6px; color: #d4d4dd; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); border-radius: 999px; padding: 8px 12px; }
 .sectionTitle { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 18px; }
 .sectionTitle h2 { display: flex; align-items: center; gap: 10px; } .sectionTitle a { color: #00f5a0; }
-.categoryGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
-.categoryCard { min-height: 132px; border: 1px solid rgba(255,255,255,.10); background: rgba(20,20,26,.75); color: white; border-radius: 24px; display: grid; place-items: center; gap: 6px; transition: .25s ease; }
-.categoryCard span { font-size: 28px; } .categoryCard small { color: #00f5a0; } .categoryCard:hover { transform: translateY(-4px); border-color: #00f5a0; box-shadow: 0 0 30px rgba(0,245,160,.12); }
 .miniRow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .miniTrend { text-align: right; border: 1px solid rgba(255,255,255,.1); border-radius: 22px; background: rgba(255,255,255,.05); color: white; padding: 18px; display: grid; gap: 8px; }
 .app.ltr .miniTrend { text-align: left; }
@@ -93,10 +90,9 @@ button, input { font: inherit; } button { cursor: pointer; }
 .cardActions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .copyButton, .previewButton { width: 100%; justify-content: center; }
 .copyButton { background: linear-gradient(135deg, #8b5cf6, #00f5a0); color: #07100d; font-weight: 800; border: 0; }
-.collectionRow { display: flex; flex-wrap: wrap; gap: 12px; }
 footer { border-top: 1px solid rgba(255,255,255,.1); padding-top: 28px; color: #a1a1aa; } footer strong { color: #fff; }
-.bottomNav { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 35; width: min(520px, calc(100% - 24px)); display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; padding: 8px; border: 1px solid rgba(255,255,255,.13); border-radius: 24px; background: rgba(12,12,18,.82); backdrop-filter: blur(18px); box-shadow: 0 18px 60px rgba(0,0,0,.35); }
+.bottomNav { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 35; width: min(520px, calc(100% - 24px)); display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 8px; border: 1px solid rgba(255,255,255,.13); border-radius: 24px; background: rgba(12,12,18,.82); backdrop-filter: blur(18px); box-shadow: 0 18px 60px rgba(0,0,0,.35); }
 .bottomNav button { border: 0; border-radius: 18px; background: transparent; color: #c4c4cf; display: grid; place-items: center; gap: 3px; padding: 8px 4px; font-size: 12px; }
 .bottomNav button:hover { color: #00f5a0; background: rgba(0,245,160,.08); }
-@media (max-width: 900px) { .feature { grid-template-columns: 1fr; } .categoryGrid { grid-template-columns: repeat(3, 1fr); } .promptGrid { grid-template-columns: repeat(2, 1fr); } .promptModal { grid-template-columns: 1fr; } .modalVisual { min-height: 320px; } .miniRow { grid-template-columns: 1fr; } }
-@media (max-width: 560px) { .navbar { padding-top: 18px; align-items: flex-start; } .languageTabs button { padding: 7px 8px; font-size: 12px; } .navActions { gap: 6px; flex-wrap: wrap; justify-content: flex-end; } .app.ltr .navActions { justify-content: flex-start; } .hero { margin-top: 26px; } .hero h1 { letter-spacing: -1px; } .searchBox { flex-wrap: wrap; } .searchBox button { width: 100%; justify-content: center; } .featureImage { min-height: 260px; } .glassPreview { width: 170px; height: 104px; } .categoryGrid { grid-template-columns: repeat(2, 1fr); } .promptGrid { grid-template-columns: 1fr; } .cardActions, .featureActions { grid-template-columns: 1fr; } .modalOverlay { padding: 8px; } .promptModal { border-radius: 24px; max-height: 96vh; } .modalContent { padding: 24px; } }
+@media (max-width: 900px) { .feature { grid-template-columns: 1fr; } .promptGrid { grid-template-columns: repeat(2, 1fr); } .promptModal { grid-template-columns: 1fr; } .modalVisual { min-height: 320px; } .miniRow { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .navbar { padding-top: 18px; align-items: flex-start; } .languageTabs button { padding: 7px 8px; font-size: 12px; } .navActions { gap: 6px; flex-wrap: wrap; justify-content: flex-end; } .app.ltr .navActions { justify-content: flex-start; } .hero { margin-top: 26px; } .hero h1 { letter-spacing: -1px; } .searchBox { flex-wrap: wrap; } .searchBox button { width: 100%; justify-content: center; } .featureImage { min-height: 260px; } .glassPreview { width: 170px; height: 104px; } .promptGrid { grid-template-columns: 1fr; } .cardActions, .featureActions { grid-template-columns: 1fr; } .modalOverlay { padding: 8px; } .promptModal { border-radius: 24px; max-height: 96vh; } .modalContent { padding: 24px; } }

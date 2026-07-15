@@ -1,6 +1,5 @@
-import { categories as fallbackCategories, promptItems as fallbackPrompts, tags as fallbackTags } from '../data/site.js';
-
-const API_BASE = 'https://promptstan-api.hhhh46529.workers.dev';
+import { promptItems as fallbackPrompts, tags as fallbackTags } from '../data/site.js';
+import { API_BASE } from '../config/runtime.js';
 const gradients = ['purple', 'green', 'gold', 'pink', 'blue', 'rose'];
 const SEARCH_SESSION_PREFIX = 'promptstan-search-event:';
 
@@ -12,12 +11,7 @@ export async function loadLibraryData() {
     if (!promptsResponse.ok) throw new Error('API not ready');
     const apiPrompts = await promptsResponse.json();
 
-    let apiCategories = [];
     let apiTags = [];
-    try {
-      const categoriesResponse = await fetch(`${API_BASE}/api/categories`);
-      apiCategories = categoriesResponse.ok ? await categoriesResponse.json() : [];
-    } catch {}
     try {
       const tagsResponse = await fetch(`${API_BASE}/api/tags/trending`);
       apiTags = tagsResponse.ok ? await tagsResponse.json() : [];
@@ -28,21 +22,17 @@ export async function loadLibraryData() {
       : [];
 
     return {
-      categories: mergeCategories(apiCategories.map(normalizeCategory), fallbackCategories),
-      prompts: mergePromptLibraries(livePrompts, staticPrompts),
+      prompts: livePrompts,
       tags: mergeTags(apiTags.map((tag) => tag.name), fallbackTags),
-      source: livePrompts.length ? 'hybrid' : 'static',
-      liveCount: livePrompts.length,
-      staticCount: staticPrompts.length
+      source: 'live',
+      liveCount: livePrompts.length
     };
   } catch {
     return {
-      categories: fallbackCategories,
       prompts: staticPrompts,
       tags: fallbackTags,
-      source: 'static',
-      liveCount: 0,
-      staticCount: staticPrompts.length
+      source: 'fallback',
+      liveCount: 0
     };
   }
 }
@@ -54,6 +44,8 @@ export async function getPromptBySlug(slug) {
   try {
     const response = await fetch(`${API_BASE}/api/prompts/${encodeURIComponent(safeSlug)}`);
     if (response.ok) return normalizePrompt(await response.json(), 0, 'api');
+    if (response.status === 404) return null;
+    throw new Error(`Prompt API returned ${response.status}`);
   } catch {}
 
   return fallbackPrompts
@@ -122,40 +114,8 @@ export async function trackSearchEvent(query, resultCount = 0) {
   } catch {}
 }
 
-function mergePromptLibraries(livePrompts, staticPrompts) {
-  const seenSlugs = new Set();
-  const merged = [];
-
-  for (const prompt of [...livePrompts, ...staticPrompts]) {
-    if (!prompt.slug || seenSlugs.has(prompt.slug)) continue;
-    seenSlugs.add(prompt.slug);
-    merged.push(prompt);
-  }
-
-  return merged;
-}
-
-function mergeCategories(liveCategories, staticCategories) {
-  const seen = new Set();
-  return [...liveCategories, ...staticCategories].filter((category) => {
-    const key = category.slug || category.name;
-    if (!key || seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
-
 function mergeTags(liveTags, staticTags) {
   return [...new Set([...liveTags, ...staticTags].filter(Boolean))];
-}
-
-function normalizeCategory(category) {
-  return {
-    name: category.name_ku || category.name_en || category.slug,
-    icon: category.icon || '👤',
-    slug: category.slug,
-    count: category.count || 0
-  };
 }
 
 export function normalizePrompt(prompt, index = 0, source = 'api') {

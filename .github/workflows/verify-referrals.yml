@@ -55,10 +55,6 @@ jobs:
         run: |
           set -euo pipefail
           APP_BASE="$(cat /tmp/app-base.txt)"
-          curl -fsSL -X POST \
-            -H 'x-promptstan-bootstrap: empty-library-v1' \
-            "$APP_BASE/api/bootstrap" >/tmp/bootstrap.json
-
           curl -fsSL "$APP_BASE/api/prompts" >/tmp/prompts.json
           node <<'NODE'
           const fs = require('fs');
