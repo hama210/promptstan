@@ -8,8 +8,15 @@ export const DEFAULT_RETENTION_SETTINGS = Object.freeze({
 });
 
 const encoder = new TextEncoder();
+const PROMPT_MODERATION_COLUMNS = Object.freeze([
+  ['moderation_status', "ALTER TABLE prompts ADD COLUMN moderation_status TEXT DEFAULT 'published'"],
+  ['moderation_reason', 'ALTER TABLE prompts ADD COLUMN moderation_reason TEXT'],
+  ['moderated_at', 'ALTER TABLE prompts ADD COLUMN moderated_at DATETIME'],
+  ['moderated_by', 'ALTER TABLE prompts ADD COLUMN moderated_by TEXT']
+]);
 
 export async function ensureProductOperationsSchema(env) {
+  await ensurePromptModerationColumns(env);
   await env.DB.prepare(`
     CREATE TABLE IF NOT EXISTS product_operations_settings (
       id INTEGER PRIMARY KEY,
@@ -44,6 +51,26 @@ export async function ensureProductOperationsSchema(env) {
     'CREATE INDEX IF NOT EXISTS idx_operation_events_action_created ON operation_events (action, created_at)'
   ]) {
     try { await env.DB.prepare(statement).run(); } catch {}
+  }
+}
+
+async function ensurePromptModerationColumns(env) {
+  const result = await env.DB.prepare("SELECT name FROM pragma_table_info('prompts')").all();
+  const existing = new Set((result.results || []).map((row) => row.name));
+  for (const [name, statement] of PROMPT_MODERATION_COLUMNS) {
+    if (existing.has(name)) continue;
+    try {
+      await env.DB.prepare(statement).run();
+      existing.add(name);
+    } catch (error) {
+      const raced = await env.DB.prepare(`
+        SELECT name FROM pragma_table_info('prompts')
+        WHERE name = ?
+        LIMIT 1
+      `).bind(name).first();
+      if (!raced?.name) throw error;
+      existing.add(name);
+    }
   }
 }
 

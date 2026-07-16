@@ -73,4 +73,6 @@ The Worker is configured with the current compatibility date, Node.js compatibil
 - `POST /api/admin/operations/restore-drill` validates a backup without changing production data.
 - Phase 9 retention cleanup protects prompt content and removes old operational rows in bounded batches only after explicit enablement or confirmation.
 
+The Worker idempotently bootstraps additive Phase 9 D1 columns for Cloudflare repository deployments. If `CLOUDFLARE_API_TOKEN` is configured in GitHub, the deployment workflow additionally applies all pending Wrangler migrations before deploying.
+
 Before a production migration or large content change, download an Admin backup, pass a restore drill and verify the latest deployment workflow completed successfully. See `OPERATIONS.md` for the recovery and incident runbook.

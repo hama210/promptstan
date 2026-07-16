@@ -89,14 +89,16 @@ assert.match(manager, /status: 'archived'/);
 assert.equal(manager.includes("method: 'DELETE'"), false, 'Prompt manager must archive instead of hard delete');
 
 for (const column of ['moderation_status', 'moderation_reason', 'moderated_at', 'moderated_by']) {
-  assert.match(migration, new RegExp(`ADD COLUMN ${column}`));
+  assert.match(operations, new RegExp(`ADD COLUMN ${column}`));
 }
+assert.equal(migration.includes('ADD COLUMN moderation_status'), false, 'Wrangler migration must stay compatible with runtime schema bootstrap');
 for (const table of ['product_operations_settings', 'operation_events']) {
   assert.match(migration, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}`));
 }
 assert.match(backupExport, /promptstan-content-backup-v2/);
 assert.match(backupExport, /integrity: \{ algorithm: 'SHA-256', digest \}/);
-assert.match(deployment, /- name: Apply D1 migrations\s+env:[\s\S]*run: npx wrangler d1 migrations apply promptstan-db --remote/);
+assert.match(deployment, /- name: Apply D1 migrations\s+if: env\.CLOUDFLARE_API_TOKEN != ''\s+run: npx wrangler d1 migrations apply promptstan-db --remote/);
+assert.match(deployment, /- name: Use Cloudflare repository deployment\s+if: env\.CLOUDFLARE_API_TOKEN == ''/);
 assert.match(deployment, /"product_operations_schema":"ready"/);
 
 console.log(JSON.stringify({

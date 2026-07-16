@@ -52,3 +52,5 @@ Use **Repair next image**. This first marks jobs stuck for more than 15 minutes 
 ### Deployment problem
 
 Check `/api/health` for both `product_operations: product-operations-v1` and `product_operations_schema: ready`, inspect the latest deployment workflow and review structured Worker logs for `admin_operation_failed`, `scheduled_retention_failed` or `retention_cleanup`.
+
+The Phase 9 schema bootstrap is additive and idempotent through the Worker's D1 binding. When `CLOUDFLARE_API_TOKEN` is configured, CI also applies all pending Wrangler migrations before deployment; without it, the connected Cloudflare repository deployment remains usable and the health gate waits for D1 readiness.
