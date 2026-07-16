@@ -41,13 +41,14 @@ assert.equal(library.includes('mergePromptLibraries'), false);
 assert.equal(library.includes('/api/categories'), false);
 assert.equal(library.includes("source: 'hybrid'"), false);
 
-for (const file of ['AdminPanelV5.jsx', 'AdminPanelV6.jsx', 'AdminPanelV7.jsx', 'AdminPanelV8.jsx']) {
+for (const file of ['AdminPanelV5.jsx', 'AdminPanelV6.jsx', 'AdminPanelV7.jsx', 'AdminPanelV8.jsx', 'AdminPanelV9.jsx']) {
   const content = read(`src/admin/${file}`);
   assert.equal(/import AdminPanelV\d/.test(content), false, `${file} must not chain another panel`);
   assert.equal(/<AdminPanelV\d/.test(content), false, `${file} must render only its own section`);
 }
 assert.match(dashboard, /<AdminPanelV4 \/>/);
 assert.match(dashboard, /<AdminPanelV8 \/>/);
+assert.match(dashboard, /<AdminPanelV9 \/>/);
 
 assert.match(worker, /isAdminRequest/);
 assert.match(worker, /stabilization: 'single-source-v1'/);

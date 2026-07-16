@@ -3,6 +3,7 @@ import AdminPanelV5 from './AdminPanelV5.jsx';
 import AdminPanelV6 from './AdminPanelV6.jsx';
 import AdminPanelV7 from './AdminPanelV7.jsx';
 import AdminPanelV8 from './AdminPanelV8.jsx';
+import AdminPanelV9 from './AdminPanelV9.jsx';
 
 export default function AdminDashboard() {
   return <>
@@ -11,5 +12,6 @@ export default function AdminDashboard() {
     <AdminPanelV6 />
     <AdminPanelV7 />
     <AdminPanelV8 />
+    <AdminPanelV9 />
   </>;
 }

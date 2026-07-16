@@ -40,6 +40,9 @@ jobs:
       - name: Test Phase 8A stabilization
         run: node scripts/test-stabilization.mjs
 
+      - name: Test Phase 9A product operations
+        run: node scripts/test-product-operations.mjs
+
       - name: Test Phase 6 content safety
         run: node scripts/test-phase6.mjs
 
@@ -123,6 +126,9 @@ jobs:
       - name: Test Phase 8A stabilization
         run: node scripts/test-stabilization.mjs
 
+      - name: Test Phase 9A product operations
+        run: node scripts/test-product-operations.mjs
+
       - name: Test Phase 6 content safety
         run: node scripts/test-phase6.mjs
 
@@ -156,7 +162,8 @@ jobs:
               && printf '%s' "$health" | grep -F '"content_scale":"content-safety-v1"' >/dev/null \
               && printf '%s' "$health" | grep -F '"automation":"dynamic-schedule-v1"' >/dev/null \
               && printf '%s' "$health" | grep -F '"growth_intelligence":"conversion-intelligence-v1"' >/dev/null \
-              && printf '%s' "$health" | grep -F '"stabilization":"single-source-v1"' >/dev/null; then
+              && printf '%s' "$health" | grep -F '"stabilization":"single-source-v1"' >/dev/null \
+              && printf '%s' "$health" | grep -F '"product_operations":"product-operations-v1"' >/dev/null; then
               break
             fi
             if [ "$attempt" -eq 24 ]; then

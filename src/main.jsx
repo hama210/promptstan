@@ -11,6 +11,7 @@ import "./admin/campaign.css";
 import "./admin/phase6.css";
 import "./admin/automation.css";
 import "./admin/intelligence.css";
+import "./admin/operations.css";
 
 const isAdmin = window.location.pathname.startsWith("/admin");
 

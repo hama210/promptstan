@@ -1,0 +1,57 @@
+.operationsCard { max-width: 1180px; margin: 20px auto 0; overflow: hidden; border-color: rgba(251,191,36,.22); background: radial-gradient(circle at 100% 0%, rgba(251,191,36,.12), transparent 34%), radial-gradient(circle at 0% 100%, rgba(14,165,233,.11), transparent 38%), rgba(20,20,26,.94); }
+.operationsHeader { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.operationsBadge { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 12px; padding: 7px 11px; border: 1px solid rgba(251,191,36,.32); border-radius: 999px; background: rgba(251,191,36,.08); color: #fbbf24; font-size: .78rem; font-weight: 850; }
+.operationsState { min-width: 185px; display: grid; justify-items: center; gap: 5px; padding: 16px; border: 1px solid rgba(255,255,255,.12); border-radius: 20px; background: rgba(255,255,255,.04); text-transform: capitalize; }
+.operationsState.healthy { color: #00f5a0; border-color: rgba(0,245,160,.3); background: rgba(0,245,160,.07); }
+.operationsState.attention { color: #fbbf24; border-color: rgba(251,191,36,.3); background: rgba(251,191,36,.07); }
+.operationsState span { color: #92929f; font-size: .7rem; text-transform: none; }
+.operationsActions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 16px; }
+.operationsActions button, .retentionActions button { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid rgba(255,255,255,.12); border-radius: 14px; padding: 10px 14px; background: rgba(255,255,255,.055); color: #f5f5f7; font-weight: 800; }
+.operationsMessage { margin-top: 14px; margin-bottom: 0; }
+.operationsStats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
+.operationsStats > div { min-width: 0; display: grid; gap: 5px; padding: 15px; border: 1px solid rgba(255,255,255,.09); border-radius: 18px; background: rgba(255,255,255,.035); }
+.operationsStats svg { color: #fbbf24; }
+.operationsStats span, .operationsStats small { color: #9494a1; }
+.operationsStats strong { font-size: 1.65rem; }
+.operationsWarnings { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 13px; }
+.operationsWarnings span { display: inline-flex; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 12px; background: rgba(251,191,36,.09); color: #fde68a; font-size: .78rem; }
+.operationsGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
+.operationsPanel { min-width: 0; padding: 17px; border: 1px solid rgba(255,255,255,.1); border-radius: 21px; background: rgba(255,255,255,.035); }
+.operationsPanelTitle { display: flex; align-items: center; gap: 9px; margin-bottom: 14px; }
+.operationsPanelTitle > svg { color: #fbbf24; }
+.operationsPanelTitle div { display: grid; gap: 3px; }
+.operationsPanelTitle h3 { margin: 0; }
+.operationsPanelTitle span { color: #92929f; font-size: .72rem; }
+.moderationFilters { display: flex; flex-wrap: wrap; gap: 6px; }
+.moderationFilters button { border: 1px solid rgba(255,255,255,.1); border-radius: 999px; padding: 7px 10px; background: rgba(255,255,255,.04); color: #9f9fab; text-transform: capitalize; }
+.moderationFilters button.active { color: #07100d; border-color: transparent; background: #00f5a0; font-weight: 850; }
+.moderationList, .operationsHistory { display: grid; gap: 7px; max-height: 390px; margin-top: 12px; overflow: auto; }
+.moderationList article { display: flex; align-items: center; justify-content: space-between; gap: 9px; padding: 10px; border-radius: 13px; background: rgba(255,255,255,.04); }
+.moderationList article > div:first-child { min-width: 0; display: grid; gap: 3px; }
+.moderationList strong, .moderationList small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.moderationList small { color: #8f8f9c; }
+.moderationActions { display: flex; gap: 4px; }
+.moderationActions button { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.1); border-radius: 10px; background: rgba(255,255,255,.05); color: #dddde5; }
+.operationsToggle { display: flex; align-items: center; gap: 8px; padding: 10px; border-radius: 13px; background: rgba(255,255,255,.04); color: #d5d5dd; }
+.operationsToggle input { width: 18px; height: 18px; accent-color: #00f5a0; }
+.retentionFields { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 11px; }
+.retentionFields label { display: grid; gap: 6px; color: #bfbfc9; font-size: .78rem; }
+.retentionFields input { width: 100%; border: 1px solid rgba(255,255,255,.11); border-radius: 13px; padding: 10px 12px; background: rgba(255,255,255,.055); color: #fff; }
+.retentionActions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-top: 11px; }
+.retentionActions .retentionDelete { color: #fecaca; border-color: rgba(239,68,68,.28); background: rgba(239,68,68,.1); }
+.retentionPreview { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 11px; padding: 11px; border-radius: 14px; background: rgba(14,165,233,.07); color: #bae6fd; }
+.retentionPreview strong, .retentionPreview small { grid-column: 1 / -1; }
+.retentionPreview small { color: #8f8f9c; }
+.restoreUpload { display: grid; justify-items: center; gap: 6px; padding: 22px; border: 1px dashed rgba(251,191,36,.32); border-radius: 16px; background: rgba(251,191,36,.04); text-align: center; cursor: pointer; }
+.restoreUpload svg { color: #fbbf24; }
+.restoreUpload span { color: #9696a3; font-size: .75rem; }
+.restoreUpload input { width: 100%; margin-top: 7px; color: #bfbfc9; }
+.drillResult { display: grid; gap: 3px; margin-top: 10px; padding: 11px; border-radius: 13px; }
+.drillResult.success { color: #86efac; background: rgba(34,197,94,.09); }
+.drillResult.failed { color: #fecaca; background: rgba(239,68,68,.09); }
+.operationsHistory article { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; padding: 9px 10px; border-radius: 12px; background: rgba(255,255,255,.04); }
+.operationsHistory strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.operationsHistory span { color: #00f5a0; }
+.operationsHistory small { color: #858592; }
+@media (max-width: 900px) { .operationsGrid { grid-template-columns: 1fr; } .operationsStats { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px) { .operationsHeader { flex-direction: column; } .operationsState { width: 100%; } .operationsStats, .retentionFields, .retentionActions { grid-template-columns: 1fr; } .moderationList article { align-items: flex-start; flex-direction: column; } .moderationActions { width: 100%; } .moderationActions button { flex: 1; } .operationsHistory article { grid-template-columns: 1fr auto; } .operationsHistory small { grid-column: 1 / -1; } }

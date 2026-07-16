@@ -99,6 +99,7 @@ export async function saveAutomationSettings(env, input) {
 
 export async function getImageQueueStatus(env) {
   await ensurePromptImageColumns(env);
+  const visibility = await publishedPromptCondition(env);
   const counts = await env.DB.prepare(`
     SELECT
       COUNT(*) AS total,
@@ -107,14 +108,18 @@ export async function getImageQueueStatus(env) {
       SUM(CASE WHEN image_status = 'generating' THEN 1 ELSE 0 END) AS generating,
       SUM(CASE WHEN before_image_url IS NOT NULL AND after_image_url IS NOT NULL AND image_status = 'ready' THEN 1 ELSE 0 END) AS ready
     FROM prompts
+    WHERE ${visibility}
   `).first();
 
   const next = await env.DB.prepare(`
     SELECT id, slug, title_ku, title_en, image_status, image_error, before_image_url, after_image_url
     FROM prompts
-    WHERE before_image_url IS NULL
-       OR after_image_url IS NULL
-       OR image_status = 'failed'
+    WHERE ${visibility}
+      AND (
+        before_image_url IS NULL
+        OR after_image_url IS NULL
+        OR image_status = 'failed'
+      )
     ORDER BY
       CASE WHEN image_status = 'failed' THEN 0 ELSE 1 END,
       id ASC
@@ -134,6 +139,7 @@ export async function getImageQueueStatus(env) {
 
 export async function processImageBatch(env, requestedLimit, options = {}) {
   await Promise.all([ensureAutomationSchema(env), ensurePromptImageColumns(env)]);
+  const visibility = await publishedPromptCondition(env, 'prompts');
   const provider = getConfiguredImageProvider(env);
   const limit = clampInteger(requestedLimit, 1, 1, 3);
   const source = cleanToken(options.source || 'manual') || 'manual';
@@ -158,9 +164,12 @@ export async function processImageBatch(env, requestedLimit, options = {}) {
     SELECT prompts.*, categories.slug AS category_slug, categories.name_ku AS category_name
     FROM prompts
     JOIN categories ON prompts.category_id = categories.id
-    WHERE prompts.before_image_url IS NULL
-       OR prompts.after_image_url IS NULL
-       OR prompts.image_status = 'failed'
+    WHERE ${visibility}
+      AND (
+        prompts.before_image_url IS NULL
+        OR prompts.after_image_url IS NULL
+        OR prompts.image_status = 'failed'
+      )
     ORDER BY
       CASE WHEN prompts.image_status = 'failed' THEN 0 ELSE 1 END,
       prompts.id ASC
@@ -345,6 +354,20 @@ function cleanToken(value) {
     .toLowerCase()
     .replace(/[^a-z0-9._-]+/g, '-')
     .replace(/^-+|-+$/g, '');
+}
+
+async function publishedPromptCondition(env, alias = '') {
+  try {
+    const row = await env.DB.prepare(`
+      SELECT name FROM pragma_table_info('prompts')
+      WHERE name = 'moderation_status'
+      LIMIT 1
+    `).first();
+    const prefix = alias ? `${alias}.` : '';
+    return row?.name ? `COALESCE(${prefix}moderation_status, 'published') = 'published'` : '1 = 1';
+  } catch {
+    return '1 = 1';
+  }
 }
 
 function cleanText(value, maximumLength = 500) {

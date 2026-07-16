@@ -170,8 +170,23 @@ async function runDailyPostNow(request, env) {
 
 async function adminDashboard(request, env) {
   await ensureImageColumns(env);
+  const moderationEnabled = await hasModerationStatus(env);
+  const promptStatsSql = moderationEnabled ? `
+    SELECT
+      COUNT(*) AS count,
+      SUM(CASE WHEN COALESCE(moderation_status, 'published') = 'published' THEN 1 ELSE 0 END) AS published,
+      SUM(CASE WHEN moderation_status = 'flagged' THEN 1 ELSE 0 END) AS flagged,
+      SUM(CASE WHEN moderation_status = 'archived' THEN 1 ELSE 0 END) AS archived,
+      COALESCE(SUM(views), 0) AS views,
+      COALESCE(SUM(copies), 0) AS copies
+    FROM prompts
+  ` : `
+    SELECT COUNT(*) AS count, COUNT(*) AS published, 0 AS flagged, 0 AS archived,
+      COALESCE(SUM(views), 0) AS views, COALESCE(SUM(copies), 0) AS copies
+    FROM prompts
+  `;
   const [prompts, categories, tags] = await Promise.all([
-    env.DB.prepare('SELECT COUNT(*) AS count, COALESCE(SUM(views),0) AS views, COALESCE(SUM(copies),0) AS copies FROM prompts').first(),
+    env.DB.prepare(promptStatsSql).first(),
     env.DB.prepare('SELECT COUNT(*) AS count FROM categories').first(),
     env.DB.prepare('SELECT COUNT(*) AS count FROM tags').first()
   ]);
@@ -251,21 +266,45 @@ async function listCategories(env) {
 
 async function getCategory(env, slug) {
   await ensureImageColumns(env);
+  const visibility = await publicVisibilityCondition(env);
   const category = await env.DB.prepare('SELECT * FROM categories WHERE slug = ?').bind(slug).first();
   if (!category) return json({ error: 'Category not found' }, 404);
-  const prompts = await env.DB.prepare('SELECT prompts.*, categories.slug AS category_slug, categories.name_ku AS category_name FROM prompts JOIN categories ON prompts.category_id = categories.id WHERE categories.slug = ? ORDER BY prompts.published_at DESC LIMIT 100').bind(slug).all();
+  const prompts = await env.DB.prepare(`
+    SELECT prompts.*, categories.slug AS category_slug, categories.name_ku AS category_name
+    FROM prompts
+    JOIN categories ON prompts.category_id = categories.id
+    WHERE categories.slug = ?
+      AND ${visibility}
+    ORDER BY prompts.published_at DESC
+    LIMIT 100
+  `).bind(slug).all();
   return publicJson({ category, prompts: prompts.results || [] });
 }
 
 async function listPrompts(env) {
   await ensureImageColumns(env);
-  const result = await env.DB.prepare('SELECT prompts.*, categories.slug AS category_slug, categories.name_ku AS category_name FROM prompts JOIN categories ON prompts.category_id = categories.id ORDER BY prompts.published_at DESC LIMIT 300').all();
+  const visibility = await publicVisibilityCondition(env);
+  const result = await env.DB.prepare(`
+    SELECT prompts.*, categories.slug AS category_slug, categories.name_ku AS category_name
+    FROM prompts
+    JOIN categories ON prompts.category_id = categories.id
+    WHERE ${visibility}
+    ORDER BY prompts.published_at DESC
+    LIMIT 300
+  `).all();
   return publicJson(result.results || []);
 }
 
 async function getPrompt(env, slug) {
   await ensureImageColumns(env);
-  const prompt = await env.DB.prepare('SELECT prompts.*, categories.slug AS category_slug, categories.name_ku AS category_name FROM prompts JOIN categories ON prompts.category_id = categories.id WHERE prompts.slug = ?').bind(slug).first();
+  const visibility = await publicVisibilityCondition(env);
+  const prompt = await env.DB.prepare(`
+    SELECT prompts.*, categories.slug AS category_slug, categories.name_ku AS category_name
+    FROM prompts
+    JOIN categories ON prompts.category_id = categories.id
+    WHERE prompts.slug = ?
+      AND ${visibility}
+  `).bind(slug).first();
   if (!prompt) return json({ error: 'Prompt not found' }, 404);
   const tags = await env.DB.prepare('SELECT tags.* FROM tags JOIN prompt_tags ON prompt_tags.tag_id = tags.id WHERE prompt_tags.prompt_id = ? ORDER BY tags.name ASC').bind(prompt.id).all();
   return publicJson({ ...prompt, tags: tags.results || [] });
@@ -283,22 +322,75 @@ async function trendingTags(env) {
 
 async function trendingPrompts(env) {
   await ensureImageColumns(env);
-  const result = await env.DB.prepare('SELECT prompts.*, categories.slug AS category_slug, categories.name_ku AS category_name FROM prompts JOIN categories ON prompts.category_id = categories.id WHERE prompts.is_trending = 1 OR prompts.is_featured = 1 ORDER BY prompts.copies DESC, prompts.views DESC LIMIT 30').all();
+  const visibility = await publicVisibilityCondition(env);
+  const result = await env.DB.prepare(`
+    SELECT prompts.*, categories.slug AS category_slug, categories.name_ku AS category_name
+    FROM prompts
+    JOIN categories ON prompts.category_id = categories.id
+    WHERE ${visibility}
+      AND (prompts.is_trending = 1 OR prompts.is_featured = 1)
+    ORDER BY prompts.copies DESC, prompts.views DESC
+    LIMIT 30
+  `).all();
   return publicJson(result.results || []);
 }
 
 async function searchPrompts(env, query) {
   await ensureImageColumns(env);
+  const visibility = await publicVisibilityCondition(env);
   const term = `%${query.trim().replace('#', '')}%`;
   if (!query.trim()) return listPrompts(env);
-  const result = await env.DB.prepare('SELECT DISTINCT prompts.*, categories.slug AS category_slug, categories.name_ku AS category_name FROM prompts JOIN categories ON prompts.category_id = categories.id LEFT JOIN prompt_tags ON prompt_tags.prompt_id = prompts.id LEFT JOIN tags ON tags.id = prompt_tags.tag_id WHERE prompts.title_ku LIKE ? OR prompts.title_en LIKE ? OR prompts.title_ar LIKE ? OR prompts.prompt_text LIKE ? OR categories.name_ku LIKE ? OR tags.name LIKE ? OR tags.slug LIKE ? ORDER BY prompts.copies DESC, prompts.views DESC LIMIT 100').bind(term, term, term, term, term, term, term).all();
+  const result = await env.DB.prepare(`
+    SELECT DISTINCT prompts.*, categories.slug AS category_slug, categories.name_ku AS category_name
+    FROM prompts
+    JOIN categories ON prompts.category_id = categories.id
+    LEFT JOIN prompt_tags ON prompt_tags.prompt_id = prompts.id
+    LEFT JOIN tags ON tags.id = prompt_tags.tag_id
+    WHERE ${visibility}
+      AND (
+        prompts.title_ku LIKE ?
+        OR prompts.title_en LIKE ?
+        OR prompts.title_ar LIKE ?
+        OR prompts.prompt_text LIKE ?
+        OR categories.name_ku LIKE ?
+        OR tags.name LIKE ?
+        OR tags.slug LIKE ?
+      )
+    ORDER BY prompts.copies DESC, prompts.views DESC
+    LIMIT 100
+  `).bind(term, term, term, term, term, term, term).all();
   return publicJson(result.results || []);
 }
 
 async function increaseCounter(env, id, field) {
   if (!['views', 'copies'].includes(field)) return json({ error: 'Invalid counter' }, 400);
-  await env.DB.prepare(`UPDATE prompts SET ${field} = ${field} + 1 WHERE id = ?`).bind(id).run();
+  const visibility = await publicVisibilityCondition(env);
+  await env.DB.prepare(`
+    UPDATE prompts
+    SET ${field} = ${field} + 1
+    WHERE id = ?
+      AND ${visibility.replaceAll('prompts.', '')}
+  `).bind(id).run();
   return json({ ok: true });
+}
+
+async function hasModerationStatus(env) {
+  try {
+    const row = await env.DB.prepare(`
+      SELECT name FROM pragma_table_info('prompts')
+      WHERE name = 'moderation_status'
+      LIMIT 1
+    `).first();
+    return Boolean(row?.name);
+  } catch {
+    return false;
+  }
+}
+
+async function publicVisibilityCondition(env) {
+  return await hasModerationStatus(env)
+    ? "COALESCE(prompts.moderation_status, 'published') = 'published'"
+    : '1 = 1';
 }
 
 function slugify(value) {
