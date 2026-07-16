@@ -1,10 +1,6 @@
-ALTER TABLE prompts ADD COLUMN moderation_status TEXT DEFAULT 'published';
-ALTER TABLE prompts ADD COLUMN moderation_reason TEXT;
-ALTER TABLE prompts ADD COLUMN moderated_at DATETIME;
-ALTER TABLE prompts ADD COLUMN moderated_by TEXT;
-
-CREATE INDEX IF NOT EXISTS idx_prompts_moderation_status
-ON prompts (moderation_status, updated_at);
+-- The Worker adds the four prompt moderation columns idempotently through its
+-- D1 binding. Keeping them out of this migration lets authenticated Wrangler
+-- deployments remain compatible after a repository-managed Worker bootstrap.
 
 CREATE TABLE IF NOT EXISTS product_operations_settings (
   id INTEGER PRIMARY KEY,

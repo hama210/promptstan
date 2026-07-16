@@ -36,6 +36,7 @@ import { exportProjectData } from './operations.js';
 import {
   PRODUCT_OPERATIONS_VERSION,
   RETENTION_CONFIRMATION,
+  ensureProductOperationsSchema,
   getOperationsStatus,
   getProductOperationsSchemaStatus,
   getRetentionSettings,
@@ -66,7 +67,18 @@ export default {
     }
 
     if (url.pathname === '/api/health') {
-      const operationsSchema = await getProductOperationsSchemaStatus(env);
+      let operationsSchema = await getProductOperationsSchemaStatus(env);
+      if (!operationsSchema.ready) {
+        try {
+          await ensureProductOperationsSchema(env);
+        } catch (error) {
+          console.error(JSON.stringify({
+            event: 'product_operations_schema_bootstrap_failed',
+            error: String(error?.message || error).slice(0, 500)
+          }));
+        }
+        operationsSchema = await getProductOperationsSchemaStatus(env);
+      }
       return json({
         ok: true,
         service: 'promptstan-api',
