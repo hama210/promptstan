@@ -1,6 +1,6 @@
 # PromptStan
 
-PromptStan is a Kurdish-first AI prompt library for photo editing. The public React app is backed by a Cloudflare Worker and D1, with R2-hosted Before/After images and an Admin dashboard for publishing, automation, growth analytics and backups.
+PromptStan is a Kurdish-first AI prompt library for photo editing. The public React app is backed by a Cloudflare Worker and D1, with R2-hosted Before/After images and an Admin dashboard for publishing, automation, growth analytics, moderation, recovery and backups.
 
 ## Architecture
 
@@ -39,7 +39,7 @@ Or run the complete gate:
 npm run check
 ```
 
-The stabilization checks cover public category removal, exact prompt slugs, D1-only live data, the flattened Admin dashboard, authenticated operations, pinned dependencies and deployment configuration.
+The checks cover public category removal, exact prompt slugs, D1-only live data, the flattened Admin dashboard, authenticated operations, soft moderation, retention safety, backup integrity, pinned dependencies and deployment configuration.
 
 ## Database migrations
 
@@ -66,8 +66,11 @@ The Worker is configured with the current compatibility date, Node.js compatibil
 ## Operations
 
 - `GET /api/health` reports deployed capabilities, including `stabilization: single-source-v1`.
-- `GET /api/admin/export` downloads a protected JSON backup of the content and automation configuration.
+- `GET /api/admin/export` downloads a protected, SHA-256-verified JSON backup of content and operational configuration.
 - `POST /api/admin/library/restore` restores protected Admin library data.
 - `POST /api/bootstrap` is retained for controlled recovery and requires Admin bearer authentication.
+- `GET /api/admin/operations/status` reports moderation, image, automation and retention health.
+- `POST /api/admin/operations/restore-drill` validates a backup without changing production data.
+- Phase 9 retention cleanup protects prompt content and removes old operational rows in bounded batches only after explicit enablement or confirmation.
 
-Before a production migration or large content change, download an Admin backup and verify the latest deployment workflow completed successfully.
+Before a production migration or large content change, download an Admin backup, pass a restore drill and verify the latest deployment workflow completed successfully. See `OPERATIONS.md` for the recovery and incident runbook.

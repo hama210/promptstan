@@ -33,6 +33,20 @@ import {
 } from './growth-intelligence.js';
 import { restoreKnownLibrary } from './library-restore.js';
 import { exportProjectData } from './operations.js';
+import {
+  PRODUCT_OPERATIONS_VERSION,
+  RETENTION_CONFIRMATION,
+  getOperationsStatus,
+  getRetentionSettings,
+  hasRetentionCleanup,
+  listModerationPrompts,
+  moderatePrompt,
+  previewRetentionCleanup,
+  repairStaleImageJobs,
+  runRestoreDrill,
+  runRetentionCleanup,
+  saveRetentionSettings
+} from './product-operations.js';
 
 const JSON_HEADERS = {
   'content-type': 'application/json; charset=utf-8',
@@ -62,7 +76,8 @@ export default {
         rotation_count: ROTATION_COUNT,
         automation: AUTOMATION_VERSION,
         growth_intelligence: GROWTH_INTELLIGENCE_VERSION,
-        stabilization: 'single-source-v1'
+        stabilization: 'single-source-v1',
+        product_operations: PRODUCT_OPERATIONS_VERSION
       });
     }
 
@@ -91,6 +106,63 @@ export default {
 
     if (url.pathname === '/api/admin/export' && request.method === 'GET') {
       return adminOnly(request, env, async () => json(await exportProjectData(env)));
+    }
+
+    if (url.pathname === '/api/admin/operations/status' && request.method === 'GET') {
+      return adminOnly(request, env, async () => json(await getOperationsStatus(env)));
+    }
+
+    if (url.pathname === '/api/admin/operations/moderation' && request.method === 'GET') {
+      return adminOnly(request, env, async () => json({
+        ok: true,
+        prompts: await listModerationPrompts(
+          env,
+          url.searchParams.get('status') || 'all',
+          Number(url.searchParams.get('limit') || 50)
+        )
+      }));
+    }
+
+    const moderationMatch = url.pathname.match(/^\/api\/admin\/operations\/prompts\/(\d+)$/);
+    if (moderationMatch && request.method === 'PATCH') {
+      return adminOnly(request, env, async () => {
+        const result = await moderatePrompt(env, Number(moderationMatch[1]), await readJson(request));
+        const status = result.ok ? 200 : result.code === 'PROMPT_NOT_FOUND' ? 404 : 400;
+        return json(result, status);
+      });
+    }
+
+    if (url.pathname === '/api/admin/operations/retention' && request.method === 'GET') {
+      return adminOnly(request, env, async () => json({ ok: true, settings: await getRetentionSettings(env) }));
+    }
+
+    if (url.pathname === '/api/admin/operations/retention' && request.method === 'PUT') {
+      return adminOnly(request, env, async () => json({
+        ok: true,
+        settings: await saveRetentionSettings(env, await readJson(request))
+      }));
+    }
+
+    if (url.pathname === '/api/admin/operations/retention/preview' && request.method === 'POST') {
+      return adminOnly(request, env, async () => json(await previewRetentionCleanup(env, await readJson(request))));
+    }
+
+    if (url.pathname === '/api/admin/operations/retention/run' && request.method === 'POST') {
+      return adminOnly(request, env, async () => {
+        const result = await runRetentionCleanup(env, await readJson(request));
+        return json(result, result.ok ? 200 : 400);
+      });
+    }
+
+    if (url.pathname === '/api/admin/operations/restore-drill' && request.method === 'POST') {
+      return adminOnly(request, env, async () => {
+        const result = await runRestoreDrill(env, await readJson(request));
+        return json(result, result.ok ? 200 : 400);
+      });
+    }
+
+    if (url.pathname === '/api/admin/operations/images/recover-stale' && request.method === 'POST') {
+      return adminOnly(request, env, async () => json(await repairStaleImageJobs(env)));
     }
 
     if (url.pathname === '/api/admin/content-scale/status' && request.method === 'GET') {
@@ -186,7 +258,8 @@ async function runScheduledAutomation(env, now = new Date()) {
     ok: true,
     local,
     posting: null,
-    image_batch: null
+    image_batch: null,
+    retention: null
   };
 
   if (shouldRunPosting(settings, now)) {
@@ -227,6 +300,23 @@ async function runScheduledAutomation(env, now = new Date()) {
     } else {
       result.image_batch = { ok: true, skipped: true, reason: 'Image batch already ran for this local date' };
     }
+  }
+
+  try {
+    const retentionSettings = await getRetentionSettings(env);
+    if (retentionSettings.retention_enabled) {
+      const alreadyRan = await hasRetentionCleanup(env, local.date);
+      result.retention = alreadyRan
+        ? { ok: true, skipped: true, reason: 'Retention cleanup already ran for this local date' }
+        : await runRetentionCleanup(env, {
+            confirm: RETENTION_CONFIRMATION,
+            source: 'scheduled',
+            local_date: local.date
+          });
+    }
+  } catch (error) {
+    result.retention = { ok: false, error: String(error?.message || error).slice(0, 500) };
+    console.error(JSON.stringify({ event: 'scheduled_retention_failed', error: result.retention.error }));
   }
 
   return result;
@@ -487,7 +577,9 @@ async function adminOnly(request, env, handler) {
   try {
     return await handler();
   } catch (error) {
-    return json({ error: String(error?.message || error || 'Content scale operation failed').slice(0, 500) }, 500);
+    const message = String(error?.message || error || 'Admin operation failed').slice(0, 500);
+    console.error(JSON.stringify({ event: 'admin_operation_failed', path: new URL(request.url).pathname, error: message }));
+    return json({ error: message }, 500);
   }
 }
 

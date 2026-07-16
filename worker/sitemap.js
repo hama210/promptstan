@@ -1,18 +1,22 @@
 import { listFallbackPrompts } from './fallback-prompts.js';
 
 export async function serveSitemap(request, env) {
-  const result = await env.DB.prepare(`
-    SELECT slug, COALESCE(updated_at, published_at, created_at) AS last_modified
-    FROM prompts
-    WHERE slug IS NOT NULL AND slug != ''
-    ORDER BY published_at DESC
-    LIMIT 5000
-  `).all();
-
-  const databasePrompts = result.results || [];
-  const prompts = databasePrompts.length
-    ? databasePrompts
-    : listFallbackPrompts().map((prompt) => ({ slug: prompt.slug, last_modified: null }));
+  let prompts;
+  try {
+    const visibility = await publicVisibilityCondition(env);
+    const result = await env.DB.prepare(`
+      SELECT slug, COALESCE(updated_at, published_at, created_at) AS last_modified
+      FROM prompts
+      WHERE slug IS NOT NULL
+        AND slug != ''
+        AND ${visibility}
+      ORDER BY published_at DESC
+      LIMIT 5000
+    `).all();
+    prompts = result.results || [];
+  } catch {
+    prompts = listFallbackPrompts().map((prompt) => ({ slug: prompt.slug, last_modified: null }));
+  }
 
   const requestUrl = new URL(request.url);
   const baseUrl = String(env.PUBLIC_BASE_URL || requestUrl.origin).replace(/\/$/, '');
@@ -31,6 +35,19 @@ export async function serveSitemap(request, env) {
       'cache-control': 'public, max-age=3600, s-maxage=3600'
     }
   });
+}
+
+async function publicVisibilityCondition(env) {
+  try {
+    const row = await env.DB.prepare(`
+      SELECT name FROM pragma_table_info('prompts')
+      WHERE name = 'moderation_status'
+      LIMIT 1
+    `).first();
+    return row?.name ? "COALESCE(moderation_status, 'published') = 'published'" : '1 = 1';
+  } catch {
+    return '1 = 1';
+  }
 }
 
 function toIsoDate(value) {

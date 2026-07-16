@@ -81,11 +81,13 @@ async function servePromptPage(request, env, slug) {
   if (!env.ASSETS) return app.fetch(request, env, {});
 
   await ensurePromptImageColumns(env);
+  const visibility = await publicVisibilityCondition(env);
   const databasePrompt = await env.DB.prepare(`
     SELECT prompts.*, categories.name_ku AS category_name
     FROM prompts
     JOIN categories ON prompts.category_id = categories.id
     WHERE prompts.slug = ?
+      AND ${visibility}
     LIMIT 1
   `).bind(slug).first();
   const prompt = databasePrompt;
@@ -145,6 +147,19 @@ async function servePromptPage(request, env, slug) {
   headers.set('content-type', 'text/html; charset=utf-8');
   headers.set('cache-control', 'public, max-age=300, s-maxage=900');
   return new Response(request.method === 'HEAD' ? null : html, { status: 200, headers });
+}
+
+async function publicVisibilityCondition(env) {
+  try {
+    const row = await env.DB.prepare(`
+      SELECT name FROM pragma_table_info('prompts')
+      WHERE name = 'moderation_status'
+      LIMIT 1
+    `).first();
+    return row?.name ? "COALESCE(prompts.moderation_status, 'published') = 'published'" : '1 = 1';
+  } catch {
+    return '1 = 1';
+  }
 }
 
 async function adminSystemStatus(request, env) {

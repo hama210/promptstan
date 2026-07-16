@@ -9,36 +9,22 @@
 5. **Launch and growth** — share pages, tracked sharing, SEO, attribution and privacy-friendly analytics.
 6. **Content scale** — prompt rotation, duplicate prevention, scoring, scheduling and automation controls.
 7. **Advanced growth loops** — conversion funnels, campaign comparisons, demand gaps and recommendations.
-8A. **Stabilization and single-source architecture**
-   - ✅ D1 is the only live prompt source; bundled prompts are offline fallback only
-   - ✅ Public category UI and collection shortcuts removed
-   - ✅ Exact prompt slugs embedded in the rendered UI
-   - ✅ Admin dashboard flattened into independent panels
-   - ✅ Worker entry points consolidated and Admin comparisons hardened
-   - ✅ Bootstrap, restore and exports protected with Admin bearer authentication
-   - ✅ Additive D1 migration chain and consolidated reference schema
-   - ✅ Reproducible installs, pinned dependencies and automated stabilization checks
-   - ✅ Worker observability, public API cache policy and deployment health marker
-   - ✅ Protected content/configuration backup export
+8A. **Stabilization and single-source architecture** — D1-only live content, simplified Admin/Worker architecture, protected backups, reproducible builds and deployment gates.
+9. **Product operations**
+   - ✅ Soft moderation with published, hidden, flagged and archived states
+   - ✅ Public API, prompt pages, search and sitemap visibility enforcement
+   - ✅ Safe archive instead of permanent deletion from the normal Admin workflow
+   - ✅ Unified reliability report for images, automation, moderation and analytics
+   - ✅ Bounded retention controls with protected content tables and dry runs
+   - ✅ Optional once-daily automatic retention after explicit enablement
+   - ✅ SHA-256 backup integrity and non-mutating restore drills
+   - ✅ Stale image-job recovery and one-at-a-time retry control
+   - ✅ Structured operations audit history and incident runbook
 
-## Current
+## Deferred by product decision
 
-8B. **Accounts and monetization**
-   - ⏳ Decide whether accounts solve a validated retention problem
-   - ⏳ Optional sign-in and synced favorites
-   - ⏳ Premium collections and entitlement model
-   - ⏳ Sponsored-placement policy and reporting
+8B. **Accounts and monetization** — optional sign-in, synced favorites, premium collections and sponsored placements. This phase was intentionally skipped on 2026-07-16 and can be reconsidered later without blocking product operations.
 
-## Next
+## Next decision
 
-9. **Product operations** — moderation, retention controls, restore drills and reliability reporting.
-
-## Decisions required before Phase 8B
-
-1. **Account scope:** favorites-only identity or a full creator profile.
-2. **Authentication:** email magic links, social login or both.
-3. **Monetization:** subscription, one-time packs, sponsorships or a staged mix.
-4. **Premium boundary:** which outcomes are paid without weakening the free library.
-5. **Payments and legal:** supported markets, processor, refund policy and tax/privacy requirements.
-
-The recommended order is to validate account demand first, add optional sign-in and synced favorites second, then test one monetization model with a small cohort before building broader premium features.
+10. Choose between **audience distribution** (SEO landing pages, social publishing and campaign execution) or **image-quality expansion** (stronger Before/After generation, model fallback and visual quality review).

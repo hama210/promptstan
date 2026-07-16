@@ -64,7 +64,8 @@ export default function AdminPanelV4() {
 
   async function loadPrompts() {
     try {
-      const res = await fetch(`${API_BASE}/api/prompts`, { cache: 'no-store' });
+      const endpoint = savedToken ? `${API_BASE}/api/admin/prompts` : `${API_BASE}/api/prompts`;
+      const res = await fetch(endpoint, { headers: authHeaders, cache: 'no-store' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Could not load prompts');
       setPrompts(Array.isArray(data) ? data : []);
@@ -148,13 +149,17 @@ export default function AdminPanelV4() {
   }
 
   async function removePrompt(prompt) {
-    if (!window.confirm(`Remove this prompt? ${prompt.title_ku || prompt.title_en}`)) return;
+    if (!window.confirm(`Archive this prompt and remove it from the public site? ${prompt.title_ku || prompt.title_en}`)) return;
     setLoading(true); setMessage('');
     try {
-      const res = await fetch(`${API_BASE}/api/admin/prompts/${prompt.id}`, { method: 'DELETE', headers: authHeaders });
+      const res = await fetch(`${API_BASE}/api/admin/operations/prompts/${prompt.id}`, {
+        method: 'PATCH',
+        headers: { ...authHeaders, 'content-type': 'application/json' },
+        body: JSON.stringify({ status: 'archived', reason: 'Archived from prompt manager' })
+      });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Remove prompt failed');
-      setMessage('Prompt removed.'); await loadDashboard();
+      if (!res.ok) throw new Error(data.error || 'Archive failed');
+      setMessage('Prompt archived and removed from the public site.'); await loadDashboard();
     } catch (error) { setMessage(error.message); } finally { setLoading(false); }
   }
 
@@ -187,6 +192,6 @@ export default function AdminPanelV4() {
       <label className="checkLabel"><input checked={form.is_trending} onChange={(e) => setForm({ ...form, is_trending: e.target.checked })} type="checkbox" /> Trending</label>
       <button className="submitPrompt" disabled={!savedToken || loading || Boolean(uploading)}>{uploading ? 'Uploading image...' : loading ? 'Working...' : editingId ? 'Update Prompt' : 'Publish Prompt'}</button>
     </form></section>
-    <section className="adminCard"><div className="adminCardTitle"><Search size={22} /><h2>پرۆمپتە بڵاوکراوەکان</h2></div><div className="adminSearch"><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search prompts..." /><span>{filteredPrompts.length} results</span></div><div className="adminPromptList">{shownPrompts.length === 0 ? <p>هیچ پرۆمپتێک نەدۆزرایەوە.</p> : shownPrompts.map((prompt) => <article key={prompt.id} className="adminPromptItem">{(prompt.after_image_url || prompt.preview_image_url || prompt.before_image_url) && <img className="adminListThumb" src={prompt.after_image_url || prompt.preview_image_url || prompt.before_image_url} alt="" />}<div><strong>{prompt.title_ku || prompt.title_en}</strong><small>{prompt.category_name} • 👁 {prompt.views || 0} • 📋 {prompt.copies || 0} • {prompt.before_image_url && prompt.after_image_url ? 'Before/After ✅' : 'No B/A'}</small></div><span>{prompt.is_trending ? '🔥 Trending' : 'Prompt'}</span><div className="adminPromptActions"><button onClick={() => startEdit(prompt)} disabled={!savedToken || loading}><Edit3 size={16} /> Edit</button><button className="dangerButton" onClick={() => removePrompt(prompt)} disabled={!savedToken || loading}><Trash2 size={16} /> Remove</button></div></article>)}</div><div className="pagination"><button disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Prev</button><strong>{page} / {pageCount}</strong><button disabled={page >= pageCount} onClick={() => setPage((p) => p + 1)}>Next</button></div></section>
+    <section className="adminCard"><div className="adminCardTitle"><Search size={22} /><h2>هەموو پرۆمپتەکان</h2></div><div className="adminSearch"><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search prompts..." /><span>{filteredPrompts.length} results</span></div><div className="adminPromptList">{shownPrompts.length === 0 ? <p>هیچ پرۆمپتێک نەدۆزرایەوە.</p> : shownPrompts.map((prompt) => <article key={prompt.id} className="adminPromptItem">{(prompt.after_image_url || prompt.preview_image_url || prompt.before_image_url) && <img className="adminListThumb" src={prompt.after_image_url || prompt.preview_image_url || prompt.before_image_url} alt="" />}<div><strong>{prompt.title_ku || prompt.title_en}</strong><small>{prompt.category_name} • 👁 {prompt.views || 0} • 📋 {prompt.copies || 0} • {prompt.before_image_url && prompt.after_image_url ? 'Before/After ✅' : 'No B/A'} • {prompt.moderation_status || 'published'}</small></div><span>{prompt.is_trending ? '🔥 Trending' : 'Prompt'}</span><div className="adminPromptActions"><button onClick={() => startEdit(prompt)} disabled={!savedToken || loading}><Edit3 size={16} /> Edit</button><button className="dangerButton" onClick={() => removePrompt(prompt)} disabled={!savedToken || loading || prompt.moderation_status === 'archived'}><Trash2 size={16} /> Archive</button></div></article>)}</div><div className="pagination"><button disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Prev</button><strong>{page} / {pageCount}</strong><button disabled={page >= pageCount} onClick={() => setPage((p) => p + 1)}>Next</button></div></section>
   </main>;
 }
