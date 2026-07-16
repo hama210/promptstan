@@ -47,6 +47,42 @@ export async function ensureProductOperationsSchema(env) {
   }
 }
 
+export async function getProductOperationsSchemaStatus(env) {
+  try {
+    const [columns, settingsTable, eventsTable] = await Promise.all([
+      env.DB.prepare(`
+        SELECT COUNT(*) AS count
+        FROM pragma_table_info('prompts')
+        WHERE name IN ('moderation_status', 'moderation_reason', 'moderated_at', 'moderated_by')
+      `).first(),
+      env.DB.prepare(`
+        SELECT name FROM sqlite_master
+        WHERE type = 'table' AND name = 'product_operations_settings'
+        LIMIT 1
+      `).first(),
+      env.DB.prepare(`
+        SELECT name FROM sqlite_master
+        WHERE type = 'table' AND name = 'operation_events'
+        LIMIT 1
+      `).first()
+    ]);
+    const moderationColumns = Number(columns?.count || 0);
+    return {
+      ready: moderationColumns === 4 && Boolean(settingsTable?.name) && Boolean(eventsTable?.name),
+      moderation_columns: moderationColumns,
+      settings_table: Boolean(settingsTable?.name),
+      events_table: Boolean(eventsTable?.name)
+    };
+  } catch {
+    return {
+      ready: false,
+      moderation_columns: 0,
+      settings_table: false,
+      events_table: false
+    };
+  }
+}
+
 export function normalizeModerationStatus(value, fallback = 'published') {
   const status = String(value || '').trim().toLowerCase();
   return MODERATION_STATUSES.includes(status) ? status : fallback;
