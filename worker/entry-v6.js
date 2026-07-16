@@ -37,6 +37,7 @@ import {
   PRODUCT_OPERATIONS_VERSION,
   RETENTION_CONFIRMATION,
   getOperationsStatus,
+  getProductOperationsSchemaStatus,
   getRetentionSettings,
   hasRetentionCleanup,
   listModerationPrompts,
@@ -65,6 +66,7 @@ export default {
     }
 
     if (url.pathname === '/api/health') {
+      const operationsSchema = await getProductOperationsSchemaStatus(env);
       return json({
         ok: true,
         service: 'promptstan-api',
@@ -77,7 +79,8 @@ export default {
         automation: AUTOMATION_VERSION,
         growth_intelligence: GROWTH_INTELLIGENCE_VERSION,
         stabilization: 'single-source-v1',
-        product_operations: PRODUCT_OPERATIONS_VERSION
+        product_operations: PRODUCT_OPERATIONS_VERSION,
+        product_operations_schema: operationsSchema.ready ? 'ready' : 'pending'
       });
     }
 

@@ -65,8 +65,10 @@ const dashboard = read('src/admin/AdminDashboard.jsx');
 const manager = read('src/admin/AdminPanelV4.jsx');
 const migration = read('database/migrations/005_product_operations.sql');
 const backupExport = read('worker/operations.js');
+const deployment = read('.github/workflows/deploy-cloudflare.yml');
 
 assert.match(worker, /product_operations: PRODUCT_OPERATIONS_VERSION/);
+assert.match(worker, /product_operations_schema: operationsSchema\.ready \? 'ready' : 'pending'/);
 assert.match(worker, /\/api\/admin\/operations\/status/);
 assert.match(worker, /\/api\/admin\/operations\/restore-drill/);
 assert.match(worker, /runRetentionCleanup/);
@@ -94,6 +96,8 @@ for (const table of ['product_operations_settings', 'operation_events']) {
 }
 assert.match(backupExport, /promptstan-content-backup-v2/);
 assert.match(backupExport, /integrity: \{ algorithm: 'SHA-256', digest \}/);
+assert.match(deployment, /- name: Apply D1 migrations\s+env:[\s\S]*run: npx wrangler d1 migrations apply promptstan-db --remote/);
+assert.match(deployment, /"product_operations_schema":"ready"/);
 
 console.log(JSON.stringify({
   ok: true,

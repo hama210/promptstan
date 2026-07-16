@@ -65,7 +65,7 @@ The Worker is configured with the current compatibility date, Node.js compatibil
 
 ## Operations
 
-- `GET /api/health` reports deployed capabilities, including `stabilization: single-source-v1`.
+- `GET /api/health` reports deployed capabilities and confirms the Phase 9 D1 schema is `ready`.
 - `GET /api/admin/export` downloads a protected, SHA-256-verified JSON backup of content and operational configuration.
 - `POST /api/admin/library/restore` restores protected Admin library data.
 - `POST /api/bootstrap` is retained for controlled recovery and requires Admin bearer authentication.
