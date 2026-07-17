@@ -26,6 +26,7 @@ assert.equal(failed.passed, false);
 
 const worker = read('worker/auto-images.js');
 const publicApi = read('worker/index.js');
+const entry = read('worker/entry-v6.js');
 const app = read('src/App.jsx');
 const styles = read('src/preview-images.css');
 const config = read('wrangler.jsonc');
@@ -34,6 +35,7 @@ assert.match(worker, /workers_ai_image_fallback/);
 assert.match(worker, /versionedImageKey/);
 assert.match(publicApi, /image_quality_status/);
 assert.match(publicApi, /before_image_url IS NOT NULL/);
+assert.match(entry, /image_quality: 'phase10-v1'/);
 assert.match(app, /compareRange/);
 assert.match(app, /decoding="async"/);
 assert.match(styles, /touch-action: pan-y/);
