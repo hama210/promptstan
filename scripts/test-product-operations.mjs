@@ -71,6 +71,7 @@ assert.match(worker, /product_operations: PRODUCT_OPERATIONS_VERSION/);
 assert.match(worker, /product_operations_schema: operationsSchema\.ready \? 'ready' : 'pending'/);
 assert.match(worker, /\/api\/admin\/operations\/status/);
 assert.match(worker, /\/api\/admin\/operations\/restore-drill/);
+assert.match(worker, /access-control-allow-methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS'/);
 assert.match(worker, /runRetentionCleanup/);
 assert.match(operations, new RegExp(RETENTION_CONFIRMATION));
 assert.match(operations, /protected: \['prompts', 'categories', 'tags', 'prompt_tags', 'product_operations_settings'\]/);
