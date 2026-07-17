@@ -388,9 +388,14 @@ async function hasModerationStatus(env) {
 }
 
 async function publicVisibilityCondition(env) {
-  return await hasModerationStatus(env)
+  const moderation = await hasModerationStatus(env)
     ? "COALESCE(prompts.moderation_status, 'published') = 'published'"
     : '1 = 1';
+  return `${moderation}
+    AND prompts.image_status = 'ready'
+    AND prompts.before_image_url IS NOT NULL
+    AND prompts.after_image_url IS NOT NULL
+    AND COALESCE(prompts.image_quality_status, 'passed') != 'failed'`;
 }
 
 function slugify(value) {

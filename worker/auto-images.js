@@ -15,7 +15,12 @@ export async function ensurePromptImageColumns(env) {
     'ALTER TABLE prompts ADD COLUMN before_image_url TEXT',
     'ALTER TABLE prompts ADD COLUMN after_image_url TEXT',
     'ALTER TABLE prompts ADD COLUMN image_status TEXT DEFAULT "pending"',
-    'ALTER TABLE prompts ADD COLUMN image_error TEXT'
+    'ALTER TABLE prompts ADD COLUMN image_error TEXT',
+    'ALTER TABLE prompts ADD COLUMN image_quality_status TEXT DEFAULT "pending"',
+    'ALTER TABLE prompts ADD COLUMN image_quality_score INTEGER DEFAULT 0',
+    'ALTER TABLE prompts ADD COLUMN image_quality_reason TEXT',
+    'ALTER TABLE prompts ADD COLUMN image_subject_type TEXT',
+    'ALTER TABLE prompts ADD COLUMN image_model_used TEXT'
   ];
 
   for (const sql of columns) {
@@ -41,15 +46,28 @@ export async function ensurePromptImages(env, prompt, options = {}) {
 
   const force = Boolean(options.force);
   const regenerateBefore = Boolean(options.regenerateBefore);
+  let qualityRetry = false;
 
   if (!force && !regenerateBefore && prompt.before_image_url && prompt.after_image_url) {
-    await setImageStatus(env, prompt.id, 'ready', null);
-    return {
-      ok: true,
-      skipped: true,
-      before_image_url: prompt.before_image_url,
-      after_image_url: prompt.after_image_url
-    };
+    try {
+      const existingBefore = await loadImageSource(prompt.before_image_url, env);
+      const existingAfter = await loadImageSource(prompt.after_image_url, env);
+      const quality = assessImagePair(existingBefore, existingAfter);
+      await persistImageQuality(env, prompt.id, quality, detectSubjectType(prompt), prompt.image_model_used || 'legacy');
+      if (quality.passed) {
+        await setImageStatus(env, prompt.id, 'ready', null);
+        return {
+          ok: true,
+          skipped: true,
+          quality,
+          before_image_url: prompt.before_image_url,
+          after_image_url: prompt.after_image_url
+        };
+      }
+      qualityRetry = true;
+    } catch {
+      qualityRetry = true;
+    }
   }
 
   if (!env.PROMPT_IMAGES) {
@@ -72,6 +90,7 @@ export async function ensurePromptImages(env, prompt, options = {}) {
 
   try {
     const title = prompt.title_en || prompt.title_ku || prompt.slug || 'Person Edit';
+    const subjectType = detectSubjectType(prompt);
     let beforeImageUrl = prompt.before_image_url || null;
     let beforeSource;
 
@@ -80,19 +99,23 @@ export async function ensurePromptImages(env, prompt, options = {}) {
     } else {
       beforeSource = await generateBeforeImageSource(env, prompt, title);
       const beforeExtension = extensionFromContentType(beforeSource.contentType);
-      const beforeKey = `generated/${safeKey(prompt.slug || prompt.id)}-before.${beforeExtension}`;
+      const beforeKey = versionedImageKey(prompt, 'before', beforeExtension);
       await storeImage(env, beforeKey, beforeSource.buffer, beforeSource.contentType);
       beforeImageUrl = `/uploads/${beforeKey}`;
       await persistBeforeImage(env, prompt.id, beforeImageUrl);
     }
 
     let afterImageUrl = regenerateBefore ? null : (prompt.after_image_url || null);
-    if (force || regenerateBefore || !afterImageUrl) {
-      const afterSource = await generateAfterImageSource(env, prompt, title, beforeSource);
+    if (force || qualityRetry || regenerateBefore || !afterImageUrl) {
+      const afterSource = await generateAfterImageSource(env, prompt, title, beforeSource, subjectType);
       const afterExtension = extensionFromContentType(afterSource.contentType);
-      const afterKey = `generated/${safeKey(prompt.slug || prompt.id)}-after.${afterExtension}`;
+      const afterKey = versionedImageKey(prompt, 'after', afterExtension);
       await storeImage(env, afterKey, afterSource.buffer, afterSource.contentType);
       afterImageUrl = `/uploads/${afterKey}`;
+
+      const quality = assessImagePair(beforeSource, afterSource);
+      await persistImageQuality(env, prompt.id, quality, subjectType, afterSource.model || provider);
+      if (!quality.passed) throw new Error(`Image quality gate failed: ${quality.reason}`);
     }
 
     await env.DB.prepare(`
@@ -145,14 +168,32 @@ async function generateBeforeImageSource(env, prompt, title) {
   });
 }
 
-async function generateAfterImageSource(env, prompt, title, beforeSource) {
-  const editPrompt = buildAfterPrompt(prompt, title);
+async function generateAfterImageSource(env, prompt, title, beforeSource, subjectType) {
+  const editPrompt = buildAfterPrompt(prompt, title, subjectType);
 
   if (!env.OPENAI_API_KEY) {
-    return callWorkersAIFlux2(env, editPrompt, beforeSource, {
-      width: clampInteger(env.CLOUDFLARE_IMAGE_WIDTH, 768, 256, 1920),
-      height: clampInteger(env.CLOUDFLARE_IMAGE_HEIGHT, 768, 256, 1920)
-    });
+    const primaryModel = env.CLOUDFLARE_IMAGE_MODEL || DEFAULT_WORKERS_AI_IMAGE_MODEL;
+    const fallbackModel = env.CLOUDFLARE_IMAGE_FALLBACK_MODEL || primaryModel;
+    try {
+      return await callWorkersAIFlux2(env, editPrompt, beforeSource, {
+        model: primaryModel,
+        width: clampInteger(env.CLOUDFLARE_IMAGE_WIDTH, 768, 256, 1920),
+        height: clampInteger(env.CLOUDFLARE_IMAGE_HEIGHT, 768, 256, 1920)
+      });
+    } catch (primaryError) {
+      console.warn(JSON.stringify({
+        event: 'workers_ai_image_fallback',
+        prompt_id: prompt.id,
+        primary_model: primaryModel,
+        fallback_model: fallbackModel,
+        error: String(primaryError?.message || primaryError).slice(0, 300)
+      }));
+      return callWorkersAIFlux2(env, `${editPrompt}\nRetry with conservative composition and maximum facial fidelity.`, beforeSource, {
+        model: fallbackModel,
+        width: clampInteger(env.CLOUDFLARE_FALLBACK_WIDTH, 768, 256, 1024),
+        height: clampInteger(env.CLOUDFLARE_FALLBACK_HEIGHT, 768, 256, 1024)
+      });
+    }
   }
 
   try {
@@ -165,12 +206,26 @@ async function generateAfterImageSource(env, prompt, title, beforeSource) {
   }
 }
 
+export function detectSubjectType(prompt) {
+  const category = String(prompt.category_slug || '').toLowerCase();
+  const text = `${prompt.title_en || ''} ${prompt.title_ku || ''} ${prompt.prompt_text || ''}`.toLowerCase();
+
+  if (category.includes('group') || /group|family|friends|three people|four people|کۆمەڵ|خێزان/.test(text)) return 'group';
+  if (category.includes('couple') || /couple|two people|two photos|دوو کەس|شخصان/.test(text)) return 'couple';
+  return 'solo';
+}
+
 function buildBeforePrompt(prompt, title) {
   const category = String(prompt.category_slug || '').toLowerCase();
   const text = `${title} ${prompt.prompt_text || ''}`.toLowerCase();
+  const subjectType = detectSubjectType(prompt);
 
-  if (category.includes('couple') || text.includes('two people') || text.includes('couple')) {
-    return 'Realistic simple unedited casual photo of two people standing together, neutral clothes, natural daylight, plain background, phone camera look, no cinematic effects, no rain, no luxury styling.';
+  if (subjectType === 'group') {
+    return 'Photorealistic unedited casual group photo of three adult friends, every face fully visible and distinct, natural spacing, normal everyday clothes, simple daylight, plain background, realistic phone camera photo, no cinematic styling.';
+  }
+
+  if (subjectType === 'couple') {
+    return 'Photorealistic unedited casual photo of exactly two adults standing together, both complete faces visible and distinct, neutral clothes, natural daylight, plain background, realistic phone camera detail, no cinematic effects or luxury styling.';
   }
 
   if (category.includes('kurdish') || text.includes('kurdish')) {
@@ -192,8 +247,13 @@ function buildBeforePrompt(prompt, title) {
   return 'Realistic simple unedited portrait photo of one man, natural daylight, plain background, phone camera look, neutral clothes, before AI edit.';
 }
 
-function buildAfterPrompt(prompt, title) {
-  return `Edit input image 0 into the final PromptStan result. Keep the same person or people recognizable, preserve facial identity and realistic human anatomy, and keep the pose coherent. Apply this edit: ${prompt.prompt_text || title}. Title: ${title}. Produce a high-quality realistic photograph with sharp face details, natural lighting, no text, and no watermark.`;
+export function buildAfterPrompt(prompt, title, subjectType = detectSubjectType(prompt)) {
+  const identityRules = {
+    solo: 'Preserve the single subject’s exact facial geometry, eye shape, nose, mouth, jawline, skin tone, age, hairline, and distinguishing features.',
+    couple: 'Preserve both identities independently. Keep exactly two people; do not merge, swap, average, duplicate, or replace either face.',
+    group: 'Preserve every person independently. Keep the same number and left-to-right identity order; do not merge, duplicate, omit, or swap faces.'
+  };
+  return `Professional photorealistic image edit using input image 0 as the identity source. ${identityRules[subjectType]} Keep natural skin pores, realistic eyes, correct hands and anatomy, coherent pose, physically consistent lighting, shadows, scale, and camera perspective. Apply only this requested transformation: ${prompt.prompt_text || title}. Title: ${title}. The result must look like a real DSLR photograph, not AI art. No face reshaping, beauty-filter plastic skin, extra people, extra fingers, duplicated limbs, text, logo, or watermark.`;
 }
 
 async function callWorkersAIFlux2(env, prompt, imageSource = null, options = {}) {
@@ -218,8 +278,9 @@ async function callWorkersAIFlux2(env, prompt, imageSource = null, options = {})
   const formContentType = formResponse.headers.get('content-type');
   if (!formResponse.body || !formContentType) throw new Error('Could not serialize FLUX.2 multipart input');
 
+  const model = options.model || env.CLOUDFLARE_IMAGE_MODEL || DEFAULT_WORKERS_AI_IMAGE_MODEL;
   const result = await env.AI.run(
-    env.CLOUDFLARE_IMAGE_MODEL || DEFAULT_WORKERS_AI_IMAGE_MODEL,
+    model,
     {
       multipart: {
         body: formResponse.body,
@@ -231,7 +292,8 @@ async function callWorkersAIFlux2(env, prompt, imageSource = null, options = {})
   const buffer = await workersAIResultToArrayBuffer(result);
   return {
     buffer,
-    contentType: detectImageContentType(buffer, 'image/jpeg')
+    contentType: detectImageContentType(buffer, 'image/jpeg'),
+    model
   };
 }
 
@@ -343,6 +405,51 @@ async function storeImage(env, key, buffer, contentType) {
       cacheControl: 'public, max-age=31536000, immutable'
     }
   });
+}
+
+function versionedImageKey(prompt, role, extension) {
+  const version = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+  return `generated/${safeKey(prompt.slug || prompt.id)}-${role}-${version}.${extension}`;
+}
+
+export function assessImagePair(beforeSource, afterSource) {
+  const beforeBytes = Number(beforeSource?.buffer?.byteLength || 0);
+  const afterBytes = Number(afterSource?.buffer?.byteLength || 0);
+  const beforeType = normalizeImageContentType(beforeSource?.contentType);
+  const afterType = normalizeImageContentType(afterSource?.contentType);
+  const reasons = [];
+
+  if (beforeBytes < 12_000) reasons.push('before image is too small');
+  if (afterBytes < 18_000) reasons.push('after image is too small');
+  if (!beforeType.startsWith('image/') || !afterType.startsWith('image/')) reasons.push('invalid image type');
+  if (beforeBytes && afterBytes && afterBytes < beforeBytes * 0.18) reasons.push('after image has suspiciously low detail');
+
+  const score = Math.max(0, 100
+    - (beforeBytes < 12_000 ? 30 : 0)
+    - (afterBytes < 18_000 ? 45 : 0)
+    - (beforeBytes && afterBytes < beforeBytes * 0.18 ? 30 : 0));
+
+  return {
+    passed: reasons.length === 0 && score >= 70,
+    score,
+    reason: reasons.join('; ') || 'technical quality checks passed'
+  };
+}
+
+async function persistImageQuality(env, promptId, quality, subjectType, model) {
+  await env.DB.prepare(`
+    UPDATE prompts
+    SET image_quality_status = ?, image_quality_score = ?, image_quality_reason = ?,
+        image_subject_type = ?, image_model_used = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).bind(
+    quality.passed ? 'passed' : 'failed',
+    quality.score,
+    quality.reason,
+    subjectType,
+    String(model || '').slice(0, 200) || null,
+    promptId
+  ).run();
 }
 
 function toAbsoluteUrl(value, env = {}) {

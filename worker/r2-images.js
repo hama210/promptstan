@@ -37,8 +37,15 @@ export async function servePromptImage(request, env) {
   headers.set('etag', object.httpEtag);
   headers.set('cache-control', headers.get('cache-control') || 'public, max-age=31536000, immutable');
   headers.set('access-control-allow-origin', '*');
+  headers.set('cross-origin-resource-policy', 'cross-origin');
+  if (object.size) headers.set('content-length', String(object.size));
+  headers.set('x-content-type-options', 'nosniff');
 
-  return new Response(object.body, { headers });
+  if (request.headers.get('if-none-match') === object.httpEtag) {
+    return new Response(null, { status: 304, headers });
+  }
+
+  return new Response(request.method === 'HEAD' ? null : object.body, { headers });
 }
 
 function extensionFromType(type) {

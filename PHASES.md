@@ -27,4 +27,16 @@
 
 ## Next decision
 
-10. Choose between **audience distribution** (SEO landing pages, social publishing and campaign execution) or **image-quality expansion** (stronger Before/After generation, model fallback and visual quality review).
+10. **Image-quality expansion**
+   - ✅ Subject-aware generation for solo, couple and group edits
+   - ✅ Strong identity-preservation instructions
+   - ✅ Automatic technical quality gate before public readiness
+   - ✅ Configured FLUX.2 9B fallback after a primary model failure
+   - ✅ Failed and incomplete image examples hidden from public surfaces
+   - ✅ Daily bounded audit and regeneration queue for legacy images
+   - ✅ Versioned R2 URLs, conditional caching and async image decoding
+   - ✅ Touch-friendly interactive Before/After comparison
+
+## Next decision
+
+11. **Audience distribution** — SEO landing pages, social publishing and campaign execution.

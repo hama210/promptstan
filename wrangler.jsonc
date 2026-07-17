@@ -36,6 +36,7 @@
     "DAILY_POST_ENABLED": "true",
     "PUBLIC_BASE_URL": "https://promptstan-api.hhhh46529.workers.dev",
     "CLOUDFLARE_IMAGE_MODEL": "@cf/black-forest-labs/flux-2-klein-4b",
+    "CLOUDFLARE_IMAGE_FALLBACK_MODEL": "@cf/black-forest-labs/flux-2-klein-9b",
     "CLOUDFLARE_BEFORE_WIDTH": "512",
     "CLOUDFLARE_BEFORE_HEIGHT": "512",
     "CLOUDFLARE_IMAGE_WIDTH": "768",

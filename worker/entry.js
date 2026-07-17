@@ -156,7 +156,12 @@ async function publicVisibilityCondition(env) {
       WHERE name = 'moderation_status'
       LIMIT 1
     `).first();
-    return row?.name ? "COALESCE(prompts.moderation_status, 'published') = 'published'" : '1 = 1';
+    const moderation = row?.name ? "COALESCE(prompts.moderation_status, 'published') = 'published'" : '1 = 1';
+    return `${moderation}
+      AND prompts.image_status = 'ready'
+      AND prompts.before_image_url IS NOT NULL
+      AND prompts.after_image_url IS NOT NULL
+      AND COALESCE(prompts.image_quality_status, 'passed') != 'failed'`;
   } catch {
     return '1 = 1';
   }

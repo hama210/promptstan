@@ -119,6 +119,8 @@ export async function getImageQueueStatus(env) {
         before_image_url IS NULL
         OR after_image_url IS NULL
         OR image_status = 'failed'
+        OR image_quality_status IS NULL
+        OR image_quality_status IN ('pending', 'failed')
       )
     ORDER BY
       CASE WHEN image_status = 'failed' THEN 0 ELSE 1 END,
@@ -170,6 +172,8 @@ export async function processImageBatch(env, requestedLimit, options = {}) {
         prompts.before_image_url IS NULL
         OR prompts.after_image_url IS NULL
         OR prompts.image_status = 'failed'
+        OR prompts.image_quality_status IS NULL
+        OR prompts.image_quality_status IN ('pending', 'failed')
       )
     ORDER BY
       CASE WHEN prompts.image_status = 'failed' THEN 0 ELSE 1 END,

@@ -44,7 +44,12 @@ async function publicVisibilityCondition(env) {
       WHERE name = 'moderation_status'
       LIMIT 1
     `).first();
-    return row?.name ? "COALESCE(moderation_status, 'published') = 'published'" : '1 = 1';
+    const moderation = row?.name ? "COALESCE(moderation_status, 'published') = 'published'" : '1 = 1';
+    return `${moderation}
+      AND image_status = 'ready'
+      AND before_image_url IS NOT NULL
+      AND after_image_url IS NOT NULL
+      AND COALESCE(image_quality_status, 'passed') != 'failed'`;
   } catch {
     return '1 = 1';
   }

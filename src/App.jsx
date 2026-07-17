@@ -117,9 +117,10 @@ function VisualPreview({ item, t, type = 'card' }) {
   const className = type === 'modal' ? 'modalVisual' : type === 'feature' ? 'featureImage premiumScene' : 'promptImage';
 
   if (item?.hasBeforeAfter) {
-    return <div className={`${className} beforeAfterVisual`}>
-      <div className="beforeAfterPane"><img src={item.beforeImage} alt={`${item.title} before`} loading="lazy" /><span>{t.before}</span></div>
-      <div className="beforeAfterPane"><img src={item.afterImage} alt={`${item.title} after`} loading="lazy" /><span>{t.after}</span></div>
+    return <div className={`${className} beforeAfterVisual ${type !== 'card' ? 'interactiveCompare' : ''}`}>
+      <div className="beforeAfterPane beforePane"><img src={item.beforeImage} alt={`${item.title} before`} loading={type === 'feature' ? 'eager' : 'lazy'} decoding="async" fetchPriority={type === 'feature' ? 'high' : 'auto'} /><span>{t.before}</span></div>
+      <div className="beforeAfterPane afterPane"><img src={item.afterImage} alt={`${item.title} after`} loading={type === 'feature' ? 'eager' : 'lazy'} decoding="async" fetchPriority={type === 'feature' ? 'high' : 'auto'} /><span>{t.after}</span></div>
+      {type !== 'card' && <input className="compareRange" type="range" min="10" max="90" defaultValue="50" aria-label={`${t.before} / ${t.after}`} onInput={(event) => event.currentTarget.parentElement.style.setProperty('--compare', `${event.currentTarget.value}%`)} />}
       <strong className="beforeAfterTitle">{item.imageTitle}</strong>
       <span className="promptBadge beforeAfterBadge">{item.badge}</span>
     </div>;
@@ -127,7 +128,7 @@ function VisualPreview({ item, t, type = 'card' }) {
 
   if (item?.previewImage) {
     return <div className={`${className} hasPreview`}>
-      <img className={type === 'modal' ? 'modalPreviewImage' : type === 'feature' ? 'featurePreviewImage' : 'promptImagePreview'} src={item.previewImage} alt={item.title} loading="lazy" />
+      <img className={type === 'modal' ? 'modalPreviewImage' : type === 'feature' ? 'featurePreviewImage' : 'promptImagePreview'} src={item.previewImage} alt={item.title} loading={type === 'feature' ? 'eager' : 'lazy'} decoding="async" fetchPriority={type === 'feature' ? 'high' : 'auto'} />
       <span className="promptBadge">{item.badge}</span>
       <strong>{item.imageTitle}</strong>
     </div>;
