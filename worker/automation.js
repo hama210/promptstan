@@ -143,6 +143,7 @@ export async function processImageBatch(env, requestedLimit, options = {}) {
   const provider = getConfiguredImageProvider(env);
   const limit = clampInteger(requestedLimit, 1, 1, 3);
   const source = cleanToken(options.source || 'manual') || 'manual';
+  const runType = cleanToken(options.run_type || 'image_batch') || 'image_batch';
   const localDate = cleanText(options.local_date, 20) || null;
 
   if (!provider) {
@@ -156,7 +157,7 @@ export async function processImageBatch(env, requestedLimit, options = {}) {
       results: [],
       error: 'No image provider is configured.'
     };
-    await recordAutomationRun(env, 'image_batch', source, localDate, 'failed', result);
+    await recordAutomationRun(env, runType, source, localDate, 'failed', result);
     return result;
   }
 
@@ -208,7 +209,7 @@ export async function processImageBatch(env, requestedLimit, options = {}) {
 
   await recordAutomationRun(
     env,
-    'image_batch',
+    runType,
     source,
     localDate,
     failed ? 'partial' : 'completed',
