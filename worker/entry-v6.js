@@ -91,6 +91,7 @@ export default {
         automation: AUTOMATION_VERSION,
         growth_intelligence: GROWTH_INTELLIGENCE_VERSION,
         stabilization: 'single-source-v1',
+        image_quality: 'phase10-v1',
         product_operations: PRODUCT_OPERATIONS_VERSION,
         product_operations_schema: operationsSchema.ready ? 'ready' : 'pending'
       });
