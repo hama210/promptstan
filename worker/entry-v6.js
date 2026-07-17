@@ -274,6 +274,7 @@ async function runScheduledAutomation(env, now = new Date()) {
     local,
     posting: null,
     image_batch: null,
+    image_recovery: null,
     retention: null
   };
 
@@ -316,6 +317,17 @@ async function runScheduledAutomation(env, now = new Date()) {
       result.image_batch = { ok: true, skipped: true, reason: 'Image batch already ran for this local date' };
     }
   }
+
+  // Repair at most one missing or failed image set per local day. The daily
+  // cap keeps recovery automatic without allowing an unbounded AI-cost loop.
+  const recoveryAlreadyRan = await hasAutomationRun(env, 'image_recovery', local.date);
+  result.image_recovery = recoveryAlreadyRan
+    ? { ok: true, skipped: true, reason: 'Image recovery already ran for this local date' }
+    : await processImageBatch(env, 1, {
+        source: 'scheduled-recovery',
+        run_type: 'image_recovery',
+        local_date: local.date
+      });
 
   try {
     const retentionSettings = await getRetentionSettings(env);
