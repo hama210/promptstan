@@ -57,6 +57,7 @@ const JSON_HEADERS = {
   'access-control-allow-headers': 'content-type, authorization',
   'cache-control': 'no-store'
 };
+const USER_REQUESTED_PURGE_CUTOFF = '2026-07-17T12:45:00.000Z';
 
 export default {
   async fetch(request, env, ctx) {
@@ -268,10 +269,12 @@ export default {
 };
 
 async function runScheduledAutomation(env, now = new Date()) {
+  const purge = await purgeExistingPrompts(env, USER_REQUESTED_PURGE_CUTOFF);
   const settings = await getAutomationSettings(env);
   const local = getLocalScheduleParts(settings, now);
   const result = {
     ok: true,
+    purge,
     local,
     posting: null,
     image_batch: null,
@@ -348,6 +351,65 @@ async function runScheduledAutomation(env, now = new Date()) {
   }
 
   return result;
+}
+
+async function purgeExistingPrompts(env, cutoffIso) {
+  await ensurePromptImageColumns(env);
+  const alreadyCompleted = await env.DB.prepare(`
+    SELECT id FROM operation_events
+    WHERE action = 'user_requested_prompt_purge'
+      AND status = 'completed'
+      AND target_id = ?
+    LIMIT 1
+  `).bind(cutoffIso).first();
+  if (alreadyCompleted) return { ok: true, skipped: true, reason: 'Requested purge already completed' };
+
+  const cutoff = cutoffIso.replace('T', ' ').replace('.000Z', '');
+  const rows = await env.DB.prepare(`
+    SELECT id, slug, preview_image_url, before_image_url, after_image_url
+    FROM prompts
+    WHERE COALESCE(created_at, published_at) <= ?
+    ORDER BY id
+  `).bind(cutoff).all();
+  const prompts = rows.results || [];
+  const ids = prompts.map((prompt) => Number(prompt.id)).filter(Boolean);
+  const keys = [...new Set(prompts.flatMap((prompt) => [
+    prompt.preview_image_url,
+    prompt.before_image_url,
+    prompt.after_image_url
+  ]).map(r2KeyFromUrl).filter(Boolean))];
+
+  if (keys.length && env.PROMPT_IMAGES) await env.PROMPT_IMAGES.delete(keys);
+
+  for (const id of ids) {
+    await env.DB.batch([
+      env.DB.prepare('DELETE FROM prompt_tags WHERE prompt_id = ?').bind(id),
+      env.DB.prepare('DELETE FROM prompt_collections WHERE prompt_id = ?').bind(id),
+      env.DB.prepare('DELETE FROM prompt_events WHERE prompt_id = ?').bind(id),
+      env.DB.prepare('DELETE FROM content_scale_events WHERE prompt_id = ? OR duplicate_of_id = ?').bind(id, id),
+      env.DB.prepare('DELETE FROM prompts WHERE id = ?').bind(id)
+    ]);
+  }
+
+  await env.DB.prepare(`
+    INSERT INTO operation_events (action, target_type, target_id, status, details)
+    VALUES ('user_requested_prompt_purge', 'prompt_cutoff', ?, 'completed', ?)
+  `).bind(cutoffIso, JSON.stringify({ prompts_deleted: ids.length, r2_objects_deleted: keys.length })).run();
+
+  console.log(JSON.stringify({
+    event: 'user_requested_prompt_purge',
+    cutoff: cutoffIso,
+    prompts_deleted: ids.length,
+    r2_objects_deleted: keys.length
+  }));
+  return { ok: true, prompts_deleted: ids.length, r2_objects_deleted: keys.length };
+}
+
+function r2KeyFromUrl(value) {
+  const image = String(value || '').trim();
+  if (!image.includes('/uploads/')) return null;
+  const encoded = image.split('/uploads/').pop().split(/[?#]/)[0];
+  try { return decodeURIComponent(encoded); } catch { return encoded; }
 }
 
 async function restoreLibrary(env) {

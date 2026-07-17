@@ -14,7 +14,7 @@
     "db:seed": "wrangler d1 execute promptstan-db --file=database/seed.sql",
     "db:migrate:local": "wrangler d1 migrations apply promptstan-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply promptstan-db --remote",
-    "test": "node scripts/test-phase6.mjs && node scripts/test-automation.mjs && node scripts/test-growth-intelligence.mjs && node scripts/test-stabilization.mjs && node scripts/test-product-operations.mjs && node scripts/test-image-quality.mjs",
+    "test": "node scripts/test-phase6.mjs && node scripts/test-automation.mjs && node scripts/test-growth-intelligence.mjs && node scripts/test-stabilization.mjs && node scripts/test-product-operations.mjs && node scripts/test-image-quality.mjs && node scripts/test-prompt-purge.mjs",
     "check": "npm test && npm run build && wrangler deploy --dry-run"
   },
   "dependencies": {
